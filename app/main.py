@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -14,7 +14,7 @@ def health_check():
 
 @app.get("/transactions", response_model=list[TransactionRead])
 def get_transactions(transaction_type: str | None = None, sort: str | None = None, 
-db: Session = Depends(get_db)):
+db: Session = Depends(get_db), limit: int = Query(default=100, ge=1, le=100)):
     statement = select(Transaction)
 
     if transaction_type is not None:
@@ -23,6 +23,7 @@ db: Session = Depends(get_db)):
     if sort == "amount":
         statement = statement.order_by(Transaction.amount.desc())
 
+    statement = statement.limit(limit)
     result = db.execute(statement)
     transactions_result = result.scalars().all()
 
