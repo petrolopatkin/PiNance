@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Transaction
-from app.schemas import TransactionRead
+from app.schemas import TransactionRead, TransactionCreate
 
 app = FastAPI()
 
@@ -44,3 +44,14 @@ def get_transaction_by_id(transaction_id: int, db: Session = Depends(get_db)):
         )
 
     return transaction
+
+
+@app.post("/transactions", response_model=TransactionRead, status_code=201)
+def create_transaction(transaction: TransactionCreate, db: Session = Depends(get_db)):
+    new_transaction = Transaction(**transaction.model_dump())
+
+    db.add(new_transaction)
+    db.commit()
+    db.refresh(new_transaction)
+
+    return new_transaction
