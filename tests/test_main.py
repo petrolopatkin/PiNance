@@ -327,3 +327,210 @@ def test_post_transactions_rejects_incorrect_transaction_type(test_client):
     })
 
     assert response.status_code == 422
+
+
+def test_patch_transactions(test_client, test_db):
+    transactions = Transaction(
+        id=1,
+        transaction_type="expense",
+        amount=42.00,
+        description="Lunch",
+        transaction_date=date(2026, 11, 9),
+        user_id=None
+    )
+
+    test_db.add(transactions)
+    test_db.commit()
+    
+    response = test_client.patch("/transactions/1", json={
+        "amount": 45.00
+    })
+
+    assert response.status_code == 200
+
+    result = response.json()
+
+    assert result["transaction_type"] == "expense"
+    assert result["description"] == "Lunch"
+    assert result["amount"] == "45.00"
+    assert result["transaction_date"] == "2026-11-09"
+
+
+def test_patch_rejects_negative_amount(test_client, test_db):
+    transactions = Transaction(
+            id=1,
+            transaction_type="expense",
+            amount=42.00,
+            description="Lunch",
+            transaction_date=date(2026, 11, 9),
+            user_id=None
+    )
+
+    test_db.add(transactions)
+    test_db.commit()
+
+    response = test_client.patch("/transactions/1", json={
+        "amount": "-50.00"
+    })
+
+    assert response.status_code == 422
+
+
+def test_patch_rejects_transaction_with_wrong_id(test_client, test_db):
+    transactions = Transaction(
+                id=1,
+                transaction_type="expense",
+                amount=42.00,
+                description="Lunch",
+                transaction_date=date(2026, 11, 9),
+                user_id=None
+    )
+
+    test_db.add(transactions)
+    test_db.commit()
+
+    response = test_client.patch("/transactions/2", json={
+        "amount": "45.00"
+    })
+
+    assert response.status_code == 404
+
+
+def test_patch_updates_with_multiple_fields(test_client, test_db):
+    transactions = Transaction(
+                    id=1,
+                    transaction_type="expense",
+                    amount=42.00,
+                    description="Lunch",
+                    transaction_date=date(2026, 11, 9),
+                    user_id=None
+    )
+
+    test_db.add(transactions)
+    test_db.commit()
+
+    response = test_client.patch("/transactions/1", json={
+        "amount": "45.00",
+        "description": "Bus Ticket",
+        "transaction_date": "2026-11-08"
+    })
+
+    assert response.status_code == 200
+
+    result = response.json()
+
+    assert result["transaction_type"] == "expense"
+    assert result["amount"] == "45.00"
+    assert result["description"] == "Bus Ticket"
+    assert result["transaction_date"] == "2026-11-08"
+
+
+def test_put_transactions(test_client, test_db):
+    transactions = Transaction(
+        id=1,
+        transaction_type="expense",
+        amount=42.00,
+        description="Lunch",
+        transaction_date=date(2026, 11, 9),
+        user_id=None
+    )
+    
+    test_db.add(transactions)
+    test_db.commit()
+
+    response = test_client.put("/transactions/1", json={
+        "transaction_type": "expense",
+        "amount": "50.00",
+        "transaction_date": "2026-11-09"
+    })
+
+    assert response.status_code == 200
+
+    result = response.json()
+
+    assert result["transaction_type"] == "expense"
+    assert result["amount"] == "50.00"
+    assert result["description"] is None
+    assert result["transaction_date"] == "2026-11-09"
+
+
+def test_put_transaction_with_wrong_id(test_client, test_db):
+    transactions = Transaction(
+        id=1,
+        transaction_type="expense",
+        amount=42.00,
+        description="Lunch",
+        transaction_date=date(2026, 11, 9),
+        user_id=None
+    )
+        
+    test_db.add(transactions)
+    test_db.commit()
+
+    response = test_client.put("/transactions/2", json={
+        "transaction_type": "expense",
+        "amount": "50.00",
+        "transaction_date": "2026-11-09"
+    })
+
+    assert response.status_code == 404
+
+
+def test_put_rejects_negative_amount(test_client, test_db):
+    transactions = Transaction(
+        id=1,
+        transaction_type="expense",
+        amount=42.00,
+        description="Lunch",
+        transaction_date=date(2026, 11, 9),
+        user_id=None
+    )
+            
+    test_db.add(transactions)
+    test_db.commit()
+    
+    response = test_client.put("/transactions/1", json={
+        "transaction_type": "expense",
+        "amount": "-50.00",
+        "transaction_date": "2026-11-09"
+    })
+    
+    assert response.status_code == 422
+
+
+def test_delete_transaction(test_client, test_db):
+    transactions = Transaction(
+        id=1,
+        transaction_type="expense",
+        amount=42.00,
+        description="Lunch",
+        transaction_date=date(2026, 11, 9),
+        user_id=None
+    )
+                
+    test_db.add(transactions)
+    test_db.commit()
+
+    response = test_client.delete("/transactions/1")
+
+    assert response.status_code == 204
+    assert test_db.get(Transaction, 1) is None
+
+
+def test_delete_transaction_with_wrong_id(test_client, test_db):
+    transactions = Transaction(
+        id=1,
+        transaction_type="expense",
+        amount=42.00,
+        description="Lunch",
+        transaction_date=date(2026, 11, 9),
+        user_id=None
+    )
+                    
+    test_db.add(transactions)
+    test_db.commit()
+
+    response = test_client.delete("/transactions/2")
+
+    assert response.status_code == 404
+    assert test_db.get(Transaction, 1) is not None

@@ -22,3 +22,17 @@ class TransactionCreate(BaseModel):
     description: str | None = None
     transaction_date: date
     user_id: int | None = None
+
+
+class TransactionUpdate(BaseModel):
+    transaction_type: Literal["income", "expense"] | None = None
+    amount: Decimal | None = Field(default=None, gt=0)
+    description: str | None = None
+    transaction_date: date | None = None
+
+
+class TransactionReplace(BaseModel):
+    transaction_type: Literal["income", "expense"]
+    amount: Decimal = Field(gt=0)
+    description: str | None = None
+    transaction_date: date

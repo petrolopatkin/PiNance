@@ -1,9 +1,9 @@
-from fastapi import FastAPI, HTTPException, Depends, Query
+from fastapi import FastAPI, HTTPException, Depends, Query, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Transaction
-from app.schemas import TransactionRead, TransactionCreate
+from app.schemas import TransactionRead, TransactionCreate, TransactionUpdate, TransactionReplace
 
 app = FastAPI()
 
@@ -55,3 +55,69 @@ def create_transaction(transaction: TransactionCreate, db: Session = Depends(get
     db.refresh(new_transaction)
 
     return new_transaction
+
+
+@app.patch("/transactions/{transaction_id}", response_model=TransactionRead)
+def update_transaction(transaction_id: int, transaction: TransactionUpdate, 
+db: Session = Depends(get_db)):
+    statement = select(Transaction).where(Transaction.id == transaction_id)
+    result = db.execute(statement)
+    db_transaction = result.scalar_one_or_none()
+
+    if db_transaction is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Transaction not found"
+        )
+
+    update_data = transaction.model_dump(exclude_unset=True)
+
+    for key, value in update_data.items():
+        setattr(db_transaction, key, value)
+
+    db.commit()
+    db.refresh(db_transaction)
+    
+    return db_transaction
+
+
+@app.put("/transactions/{transaction_id}", response_model=TransactionRead)
+def replace_transaction(transaction_id: int, transaction: TransactionReplace,
+db: Session = Depends(get_db)):
+    statement = select(Transaction).where(Transaction.id == transaction_id)
+    result = db.execute(statement)
+    db_transaction = result.scalar_one_or_none()
+
+    if db_transaction is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Transaction not found"
+        )
+
+    update_data = transaction.model_dump()
+
+    for key, value in update_data.items():
+        setattr(db_transaction, key, value)
+
+    db.commit()
+    db.refresh(db_transaction)
+
+    return db_transaction
+
+
+@app.delete("/transactions/{transaction_id}", status_code=204)
+def delete_transaction(transaction_id: int, db: Session = Depends(get_db)):
+    statement = select(Transaction).where(Transaction.id == transaction_id)
+    result = db.execute(statement)
+    db_transaction = result.scalar_one_or_none()
+
+    if db_transaction is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Transaction not found"
+        )
+
+    db.delete(db_transaction)
+    db.commit()
+
+    return Response(status_code=204)
