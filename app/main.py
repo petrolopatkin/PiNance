@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Depends, Query, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import Transaction
+from app.models import Transaction, User
 from app.schemas import TransactionRead, TransactionCreate, TransactionUpdate, TransactionReplace
 
 app = FastAPI()
@@ -46,8 +46,33 @@ def get_transaction_by_id(transaction_id: int, db: Session = Depends(get_db)):
     return transaction
 
 
+@app.get("/users/{user_id}/transactions", response_model=list[TransactionRead])
+def get_transactions_by_user(user_id: int, db: Session = Depends(get_db)):
+    user = db.get(User, user_id)
+    statement = select(Transaction).where(Transaction.user_id == user_id)
+
+    if user is None:
+        raise HTTPException(
+            status_code=404, 
+            detail="User not found"
+        )
+
+    result = db.execute(statement)
+    transaction = result.scalars().all()
+    
+    return transaction
+
+
 @app.post("/transactions", response_model=TransactionRead, status_code=201)
 def create_transaction(transaction: TransactionCreate, db: Session = Depends(get_db)):
+    if transaction.user_id is not None:
+        user =  db.get(User, transaction.user_id)
+        if user is None:
+            raise HTTPException(
+                status_code=404,
+                detail="User not found"
+            )
+
     new_transaction = Transaction(**transaction.model_dump())
 
     db.add(new_transaction)

@@ -13,7 +13,7 @@ class TransactionRead(BaseModel):
     amount: Decimal
     description: str | None
     transaction_date: date
-    user_id: int | None
+    user_id: int
 
 
 class TransactionCreate(BaseModel):
@@ -21,7 +21,7 @@ class TransactionCreate(BaseModel):
     amount: Decimal = Field(gt=0)
     description: str | None = None
     transaction_date: date
-    user_id: int | None = None
+    user_id: int 
 
 
 class TransactionUpdate(BaseModel):
