@@ -36,3 +36,9 @@ class TransactionReplace(BaseModel):
     amount: Decimal = Field(gt=0)
     description: str | None = None
     transaction_date: date
+
+
+class UserSummary(BaseModel):
+    total_income: Decimal
+    total_expenses: Decimal
+    balance: Decimal
