@@ -1271,3 +1271,102 @@ def test_get_transactions_by_user_with_invalid_amount_range(test_client, test_db
 
     assert response.status_code == 422
     assert response.json()["detail"] == "Minimal amount cannot be bigger than maximum"
+
+
+def test_get_transactions_by_user_default_pagination(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter"
+    )
+
+    test_db.add(user)
+    test_db.commit()
+
+    transactions = [
+        Transaction(
+            id=i,
+            transaction_type="expense",
+            amount=Decimal("10.00"),
+            description=f"Transaction {i}",
+            transaction_date=date(2026, 11, i),
+            user_id=1
+        )
+        for i in range(1, 26)
+    ]
+
+    test_db.add_all(transactions)
+    test_db.commit()
+
+    response = test_client.get("/users/1/transactions")
+
+    assert response.status_code == 200
+
+    result = response.json()
+
+    assert len(result) == 20
+    assert result[0]["id"] == 25
+    assert result[-1]["id"] == 6
+
+
+def test_get_transactions_by_user_with_custom_pagination(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter"
+    )
+
+    test_db.add(user)
+    test_db.commit()
+
+    transactions = [
+        Transaction(
+            id=i,
+            transaction_type="expense",
+            amount=Decimal("10.00"),
+            description=f"Transaction {i}",
+            transaction_date=date(2026, 11, i),
+            user_id=1
+        )
+        for i in range(1, 26)
+    ]
+
+    test_db.add_all(transactions)
+    test_db.commit()
+
+    response = test_client.get("/users/1/transactions?skip=2&limit=3")
+
+    assert response.status_code == 200
+
+    result = response.json()
+
+    assert len(result) == 3
+    assert result[0]["id"] == 23
+    assert result[1]["id"] == 22
+    assert result[-1]["id"] == 21
+
+
+def test_get_transactions_by_user_with_invalid_limit(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter"
+    )
+
+    test_db.add(user)
+    test_db.commit()
+
+    response = test_client.get("/users/1/transactions?limit=0")
+
+    assert response.status_code == 422
+
+
+def test_get_transactions_by_user_with_invalid_skip(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter"
+    )
+
+    test_db.add(user)
+    test_db.commit()
+
+    response = test_client.get("/users/1/transactions?skip=-1")
+
+    assert response.status_code == 422

@@ -25,7 +25,8 @@ def get_total(db: Session, user_id: int, transaction_type:str):
 @app.get("/users/{user_id}/transactions", response_model=list[TransactionRead])
 def get_transactions_by_user_and_date(user_id: int, 
 date_from: date | None = None, date_to: date | None = None, min_amount: Decimal | None = None,
-max_amount: Decimal | None = None, db: Session = Depends(get_db)):
+max_amount: Decimal | None = None, skip: int = Query(default=0, ge=0), limit: int = Query(default=20, ge=1, le=100),
+db: Session = Depends(get_db)):
     user = db.get(User, user_id)
 
     if user is None:
@@ -46,7 +47,7 @@ max_amount: Decimal | None = None, db: Session = Depends(get_db)):
             detail="Minimal amount cannot be bigger than maximum"
         )
     
-    statement = select(Transaction).where(Transaction.user_id == user_id)
+    statement = select(Transaction).where(Transaction.user_id == user_id).order_by(Transaction.transaction_date.desc(), Transaction.id.desc())
 
     if date_from is not None:
         statement = statement.where(Transaction.transaction_date >= date_from)
@@ -60,6 +61,7 @@ max_amount: Decimal | None = None, db: Session = Depends(get_db)):
     if max_amount is not None:
         statement = statement.where(Transaction.amount <= max_amount)
 
+    statement = statement.offset(skip).limit(limit)
     result = db.execute(statement)
     transactions = result.scalars().all()
 
