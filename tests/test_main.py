@@ -1085,3 +1085,189 @@ def test_get_transactions_by_user_with_invalid_date_range(test_client, test_db):
 
     assert response.status_code == 422
     assert response.json()["detail"] == "Start date must be earlier than or equal to end date"
+
+
+def test_get_transactions_by_user_with_minimum_amount(test_client, test_db):
+    user = User(
+            id=1,
+            username="Peter"
+        )
+            
+    test_db.add(user)
+    test_db.commit()
+        
+    transactions = [
+            Transaction(
+                id=1,
+                transaction_type="income",
+                amount=2000.00,
+                description="salary",
+                transaction_date=date(2026, 11, 5),
+                user_id=1
+            ),
+            Transaction(
+                id=2,
+                transaction_type="income",
+                amount=500.00,
+                description="part-time job",
+                transaction_date=date(2026, 11, 15),
+                user_id=1
+            ),
+            Transaction(
+                id=3,
+                transaction_type="expense",
+                amount=600.00,
+                description="laptop",
+                transaction_date=date(2026, 11, 10),
+                user_id=1
+            ),
+            Transaction(
+                id=4,
+                transaction_type="expense",
+                amount=250.00,
+                description="phone",
+                transaction_date=date(2026, 11, 20),
+                user_id=1
+            )
+        ]
+        
+    test_db.add_all(transactions)
+    test_db.commit()
+
+    response = test_client.get("/users/1/transactions?min_amount=600")
+
+    assert response.status_code == 200
+
+    result = response.json()
+
+    assert len(result) == 2
+    assert {transaction["id"] for transaction in result} == {1, 3}
+
+
+def test_get_transactions_by_user_with_maximum_amount(test_client, test_db):
+    user = User(
+            id=1,
+            username="Peter"
+        )
+            
+    test_db.add(user)
+    test_db.commit()
+        
+    transactions = [
+            Transaction(
+                id=1,
+                transaction_type="income",
+                amount=2000.00,
+                description="salary",
+                transaction_date=date(2026, 11, 5),
+                user_id=1
+            ),
+            Transaction(
+                id=2,
+                transaction_type="income",
+                amount=500.00,
+                description="part-time job",
+                transaction_date=date(2026, 11, 15),
+                user_id=1
+            ),
+            Transaction(
+                id=3,
+                transaction_type="expense",
+                amount=600.00,
+                description="laptop",
+                transaction_date=date(2026, 11, 10),
+                user_id=1
+            ),
+            Transaction(
+                id=4,
+                transaction_type="expense",
+                amount=250.00,
+                description="phone",
+                transaction_date=date(2026, 11, 20),
+                user_id=1
+            )
+        ]
+        
+    test_db.add_all(transactions)
+    test_db.commit()
+
+    response = test_client.get("/users/1/transactions?max_amount=600")
+
+    assert response.status_code == 200
+
+    result = response.json()
+
+    assert len(result) == 3
+    assert {transaction["id"] for transaction in result} == {2, 3, 4}
+
+
+def test_get_transactions_by_user_with_maximum_amount(test_client, test_db):
+    user = User(
+            id=1,
+            username="Peter"
+        )
+            
+    test_db.add(user)
+    test_db.commit()
+        
+    transactions = [
+            Transaction(
+                id=1,
+                transaction_type="income",
+                amount=2000.00,
+                description="salary",
+                transaction_date=date(2026, 11, 5),
+                user_id=1
+            ),
+            Transaction(
+                id=2,
+                transaction_type="income",
+                amount=500.00,
+                description="part-time job",
+                transaction_date=date(2026, 11, 15),
+                user_id=1
+            ),
+            Transaction(
+                id=3,
+                transaction_type="expense",
+                amount=600.00,
+                description="laptop",
+                transaction_date=date(2026, 11, 10),
+                user_id=1
+            ),
+            Transaction(
+                id=4,
+                transaction_type="expense",
+                amount=250.00,
+                description="phone",
+                transaction_date=date(2026, 11, 20),
+                user_id=1
+            )
+        ]
+        
+    test_db.add_all(transactions)
+    test_db.commit()
+
+    response = test_client.get("/users/1/transactions?min_amount=500&max_amount=1000")
+
+    assert response.status_code == 200
+
+    result = response.json()
+
+    assert len(result) == 2
+    assert {transaction["id"] for transaction in result} == {2, 3}
+
+
+def test_get_transactions_by_user_with_invalid_amount_range(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter"
+    )
+                
+    test_db.add(user)
+    test_db.commit()
+
+    response = test_client.get("/users/1/transactions?min_amount=500&max_amount=250")
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Minimal amount cannot be bigger than maximum"

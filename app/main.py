@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends, Query, Response
 from datetime import date
+from decimal import Decimal
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -23,7 +24,8 @@ def get_total(db: Session, user_id: int, transaction_type:str):
 
 @app.get("/users/{user_id}/transactions", response_model=list[TransactionRead])
 def get_transactions_by_user_and_date(user_id: int, 
-date_from: date | None = None, date_to: date | None = None, db: Session = Depends(get_db)):
+date_from: date | None = None, date_to: date | None = None, min_amount: Decimal | None = None,
+max_amount: Decimal | None = None, db: Session = Depends(get_db)):
     user = db.get(User, user_id)
 
     if user is None:
@@ -37,6 +39,12 @@ date_from: date | None = None, date_to: date | None = None, db: Session = Depend
             status_code=422,
             detail="Start date must be earlier than or equal to end date"
         )
+
+    if min_amount is not None and max_amount is not None and min_amount > max_amount:
+        raise HTTPException(
+            status_code=422,
+            detail="Minimal amount cannot be bigger than maximum"
+        )
     
     statement = select(Transaction).where(Transaction.user_id == user_id)
 
@@ -45,6 +53,12 @@ date_from: date | None = None, date_to: date | None = None, db: Session = Depend
 
     if date_to is not None:
         statement = statement.where(Transaction.transaction_date <= date_to)
+
+    if min_amount is not None:
+        statement = statement.where(Transaction.amount >= min_amount)
+
+    if max_amount is not None:
+        statement = statement.where(Transaction.amount <= max_amount)
 
     result = db.execute(statement)
     transactions = result.scalars().all()
