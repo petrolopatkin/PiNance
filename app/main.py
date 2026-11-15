@@ -1,11 +1,11 @@
 from fastapi import FastAPI, HTTPException, Depends, Query, Response
 from datetime import date
 from decimal import Decimal
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import Transaction, User
-from app.schemas import TransactionRead, TransactionCreate, TransactionUpdate, TransactionReplace, UserSummary
+from app.models import Transaction, User, Category
+from app.schemas import TransactionRead, TransactionCreate, TransactionUpdate, TransactionReplace, UserSummary, CategoryRead, CategoryCreate
 
 app = FastAPI()
 
@@ -129,6 +129,23 @@ def get_user_summary(user_id: int, db: Session = Depends(get_db)):
     )
 
 
+@app.get("/users/{user_id}/categories", response_model=list[CategoryRead])
+def get_categories_by_user(user_id: int, db: Session = Depends(get_db)):
+    user = db.get(User, user_id)
+
+    if user is None:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+
+    statement = select(Category).where(or_(Category.user_id == user_id, Category.user_id.is_(None)))
+    result = db.execute(statement)
+    categories = result.scalars().all()
+
+    return categories
+
+
 @app.post("/transactions", response_model=TransactionRead, status_code=201)
 def create_transaction(transaction: TransactionCreate, db: Session = Depends(get_db)):
     if transaction.user_id is not None:
@@ -146,6 +163,25 @@ def create_transaction(transaction: TransactionCreate, db: Session = Depends(get
     db.refresh(new_transaction)
 
     return new_transaction
+
+
+@app.post("/users/{user_id}/categories", response_model=CategoryRead, status_code=201)
+def create_category(user_id: int, category: CategoryCreate, db: Session = Depends(get_db)):
+    user = db.get(User, user_id)
+
+    if user is None:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+
+    new_category = Category(user_id=user_id, **category.model_dump())
+
+    db.add(new_category)
+    db.commit()
+    db.refresh(new_category)
+
+    return new_category
 
 
 @app.patch("/transactions/{transaction_id}", response_model=TransactionRead)

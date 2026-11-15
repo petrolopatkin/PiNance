@@ -42,3 +42,19 @@ class UserSummary(BaseModel):
     total_income: Decimal
     total_expenses: Decimal
     balance: Decimal
+
+
+class CategoryRead(BaseModel):
+    model_config = {
+        "from_attributes": True
+    }
+
+    id: int
+    name: str
+    transaction_type: str
+    user_id: int | None
+
+
+class CategoryCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=50)
+    transaction_type: Literal["income", "expense"]

@@ -34,7 +34,7 @@ class User(Base):
 class Category(Base):
     __tablename__ = "categories"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
     name: Mapped[str] = mapped_column(String(50), nullable=False)
     transaction_type: Mapped[str] = mapped_column(String(10), nullable=False)
     user_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=True)

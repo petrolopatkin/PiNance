@@ -3,11 +3,12 @@ from app.main import app
 import pytest
 from datetime import date
 from decimal import Decimal
-from sqlalchemy import create_engine, Column, BigInteger, Table, select, func, text, event 
+from sqlalchemy import create_engine, select, func, event 
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
-from app.models import Base, Transaction, User
+from app.models import Base, Transaction, User, Category
 from app.database import get_db
+from app.seed import STANDARD_CATEGORIES
 
 test_engine = create_engine(
     "sqlite://",
@@ -1370,3 +1371,139 @@ def test_get_transactions_by_user_with_invalid_skip(test_client, test_db):
     response = test_client.get("/users/1/transactions?skip=-1")
 
     assert response.status_code == 422
+
+
+def test_get_standart_categories(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter"
+    )
+
+    test_db.add(user)
+    test_db.commit()
+
+    for category_data in STANDARD_CATEGORIES:
+        category = Category(**category_data)
+        test_db.add(category)
+
+    test_db.commit()
+
+    response = test_client.get("/users/1/categories")
+
+    assert response.status_code == 200
+
+    result = response.json()
+
+    assert len(result) == 14
+
+    for category in result:
+        assert category["user_id"] is None
+
+
+def test_get_standart_categories_with_custom_categories(test_client, test_db):
+    users = [
+        User(
+            id=1,
+            username="Peter"
+        ),
+        User(
+            id=2,
+            username="Mary"
+        )
+    ]
+
+    test_db.add_all(users)
+    test_db.commit()
+
+    for category_data in STANDARD_CATEGORIES:
+        category = Category(**category_data)
+        test_db.add(category)
+
+    test_db.commit()
+
+    categories = [
+        Category(
+            name="Gaming",
+            transaction_type="expense",
+            user_id=1
+        ),
+        Category(
+            name="Photography",
+            transaction_type="expense",
+            user_id=2
+        ),
+    ]
+
+    test_db.add_all(categories)
+    test_db.commit()
+
+    response = test_client.get("/users/1/categories")
+
+    assert response.status_code == 200
+
+    result = response.json()
+
+    assert len(result) == 15
+
+    names = [category["name"] for category in result]
+
+    assert "Gaming" in names
+    assert "Photography" not in names
+
+
+def test_get_categories_with_invalid_user_id(test_client):
+    response = test_client.get("/users/999/categories")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "User not found"
+
+
+def test_post_create_category_by_user(test_client, test_db):
+    user =  User(
+        id=1,
+        username="Peter"
+    )
+
+    test_db.add(user)
+    test_db.commit()
+
+    response = test_client.post("/users/1/categories", json={
+        "name": "My Hobby",
+        "transaction_type": "expense"
+    })
+
+    assert response.status_code == 201
+
+    result = response.json()
+
+    assert result["id"] > 0
+    assert result["name"] == "My Hobby"
+    assert result["transaction_type"] == "expense"
+    assert result["user_id"] == 1
+
+
+def test_post_create_category_with_invalid_transaction_type(test_client, test_db):
+    user =  User(
+        id=1,
+        username="Peter"
+    )
+    
+    test_db.add(user)
+    test_db.commit()
+
+    response = test_client.post("/users/1/categories", json={
+        "name": "My Hobby",
+        "transaction_type": "saving"
+    })
+
+    assert response.status_code == 422
+
+
+def test_post_create_category_with_invalid_user_id(test_client):
+    response = test_client.post("/users/999/categories", json={
+        "name": "My Hobby",
+        "transaction_type": "expense"
+    })
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "User not found"
