@@ -5,7 +5,7 @@ from sqlalchemy import select, func, or_
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Transaction, User, Category
-from app.schemas import TransactionRead, TransactionCreate, TransactionUpdate, TransactionReplace, UserSummary, CategoryRead, CategoryCreate
+from app.schemas import TransactionRead, TransactionCreate, TransactionUpdate, TransactionReplace, UserSummary, CategoryRead, CategoryCreate, CategoryUpdate
 
 app = FastAPI()
 
@@ -208,6 +208,54 @@ db: Session = Depends(get_db)):
     return db_transaction
 
 
+@app.patch("/users/{user_id}/categories/{category_id}", response_model=CategoryRead)
+def update_category(user_id: int, category_id: int, category: CategoryUpdate, 
+db: Session = Depends(get_db)):
+    user = db.get(User, user_id)
+
+    if user is None:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+
+    db_category = db.get(Category, category_id)
+
+    if db_category is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Category not found"
+        )
+
+    if db_category.user_id is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Standart categories cannot be modified"
+        )
+
+    if db_category.user_id != user_id:
+        raise HTTPException(
+            status_code=404,
+            detail="Category not found"
+        )
+
+    category_data = category.model_dump(exclude_unset=True)
+
+    if not category_data or category_data.get("name") is None:
+        raise HTTPException(
+            status_code=422,
+            detail="A valid category name must be provided"
+        )
+    
+    for key, value in category_data.items():
+            setattr(db_category, key, value)
+
+    db.commit()
+    db.refresh(db_category)
+
+    return db_category
+    
+
 @app.put("/transactions/{transaction_id}", response_model=TransactionRead)
 def replace_transaction(transaction_id: int, transaction: TransactionReplace,
 db: Session = Depends(get_db)):
@@ -245,6 +293,52 @@ def delete_transaction(transaction_id: int, db: Session = Depends(get_db)):
         )
 
     db.delete(db_transaction)
+    db.commit()
+
+    return Response(status_code=204)
+
+
+@app.delete("/users/{user_id}/categories/{category_id}", status_code=204)
+def delete_category(user_id: int, category_id: int, db: Session = Depends(get_db)):
+    user = db.get(User, user_id)
+
+    if user is None:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+
+    db_category = db.get(Category, category_id)
+
+    if db_category is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Category not found"
+        )
+
+    if db_category.user_id is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Standart categories cannot be deleted"
+        )
+
+    if db_category.user_id != user_id:
+        raise HTTPException(
+            status_code=404,
+            detail="Category not found"
+        )
+
+    statement = select(Transaction).where(Transaction.category_id == category_id)
+    result = db.execute(statement)
+    transaction = result.scalar_one_or_none()
+
+    if transaction is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="This category contains some transactions. Delete them before deleting the category"
+        )
+
+    db.delete(db_category)
     db.commit()
 
     return Response(status_code=204)

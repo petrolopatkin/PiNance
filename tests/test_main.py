@@ -1507,3 +1507,274 @@ def test_post_create_category_with_invalid_user_id(test_client):
 
     assert response.status_code == 404
     assert response.json()["detail"] == "User not found"
+
+
+def test_patch_update_category_forbids_changing_categories_of_different_user(test_client, test_db):
+    users = [
+            User(
+                id=1,
+                username="Peter"
+            ),
+            User(
+                id=2,
+                username="Mary"
+            )
+        ]
+
+    test_db.add_all(users)
+    test_db.commit()
+
+    category = Category(
+        name="Photography",
+        transaction_type="expense",
+        user_id=2
+    )
+
+    test_db.add(category)
+    test_db.commit()
+
+    response = test_client.patch(f"/users/1/categories/{category.id}", json = {
+        "name": "Not Photography"
+    })
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Category not found"
+
+
+def test_patch_by_user_changes_category_correctly(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter"
+    )
+
+    test_db.add(user)
+    test_db.commit()
+
+    category = Category(
+        name="Gaming",
+        transaction_type="expense",
+        user_id=1
+    )
+
+    test_db.add(category)
+    test_db.commit()
+
+    response = test_client.patch(f"/users/1/categories/{category.id}", json={
+        "name": "Virtual Gaming"
+    })
+
+    assert response.status_code == 200
+
+    result = response.json()
+
+    assert result["name"] == "Virtual Gaming"
+    assert result["transaction_type"] == "expense"
+    assert result["user_id"] == 1
+
+
+def test_patch_forbids_changing_standart_category(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter"
+    )
+    
+    test_db.add(user)
+    test_db.commit()
+
+    for category_data in STANDARD_CATEGORIES:
+        category = Category(**category_data)
+        test_db.add(category)
+
+    test_db.commit()
+
+    response = test_client.patch("/users/1/categories/2", json={
+        "name": "Public Transport"
+    })
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Standart categories cannot be modified"
+
+
+def test_patch_forbids_empty_json_data(test_client, test_db):
+    user = User(
+            id=1,
+            username="Peter"
+    )
+        
+    test_db.add(user)
+    test_db.commit()
+
+    category = Category(
+        name="Gaming",
+        transaction_type="expense",
+        user_id=1
+    )
+    
+    test_db.add(category)
+    test_db.commit()
+
+    response = test_client.patch(f"/users/1/categories/{category.id}", json={})
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "A valid category name must be provided"
+
+
+def test_patch_forbids_none_json_data(test_client, test_db):
+    user = User(
+            id=1,
+            username="Peter"
+    )
+        
+    test_db.add(user)
+    test_db.commit()
+
+    category = Category(
+        name="Gaming",
+        transaction_type="expense",
+        user_id=1
+    )
+    
+    test_db.add(category)
+    test_db.commit()
+
+    response = test_client.patch(f"/users/1/categories/{category.id}", json={
+        "name": None
+    })
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "A valid category name must be provided"
+
+
+def test_delete_category(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter"
+    )
+
+    test_db.add(user)
+    test_db.commit()
+
+    category = Category(
+        name="Gaming",
+        transaction_type="expense",
+        user_id=1
+    )
+        
+    test_db.add(category)
+    test_db.commit()
+
+    response = test_client.delete(f"/users/1/categories/{category.id}")
+
+    assert response.status_code == 204
+    assert test_db.get(Category, category.id) is None
+
+
+def test_delete_category_with_transactions_is_not_allowed(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter"
+    )
+    
+    test_db.add(user)
+    test_db.commit()
+    
+    category = Category(
+        name="Gaming",
+        transaction_type="expense",
+        user_id=1
+    )
+            
+    test_db.add(category)
+    test_db.commit()
+
+    transaction = Transaction(
+        id = 1,
+        transaction_type="expense",
+        amount=Decimal("25.50"),
+        description="Lunch",
+        transaction_date=date(2026, 11, 16),
+        user_id=1,
+        category_id=category.id
+    )
+
+    test_db.add(transaction)
+    test_db.commit()
+
+    response = test_client.delete(f"/users/1/categories/{category.id}")
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "This category contains some transactions. Delete them before deleting the category"
+    assert test_db.get(Category, category.id) is not None
+
+
+def test_delete_category_with_nonexistent_user(test_client, ):
+    response = test_client.delete("/users/999/categories/1")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "User not found"
+
+
+def test_delete_forbids_another_user_category(test_client, test_db):
+    users = [
+                User(
+                    id=1,
+                    username="Peter"
+                ),
+                User(
+                    id=2,
+                    username="Mary"
+                )
+            ]
+    
+    test_db.add_all(users)
+    test_db.commit()
+    
+    category = Category(
+            name="Photography",
+            transaction_type="expense",
+            user_id=2
+        )
+    
+    test_db.add(category)
+    test_db.commit()
+    
+    response = test_client.delete(f"/users/1/categories/{category.id}")
+    
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Category not found"
+
+
+def test_delete_forbids_standart_category(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter"
+    )
+        
+    test_db.add(user)
+    test_db.commit()
+
+    for category_data in STANDARD_CATEGORIES:
+        category = Category(**category_data)
+        test_db.add(category)
+    
+    test_db.commit()
+
+    response = test_client.delete("/users/1/categories/2")
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Standart categories cannot be deleted"
+
+
+def test_delete_nonexistent_category(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter"
+    )
+
+    test_db.add(user)
+    test_db.commit()
+
+    response = test_client.delete("/users/1/categories/999")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Category not found"

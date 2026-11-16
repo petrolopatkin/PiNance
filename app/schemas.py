@@ -58,3 +58,7 @@ class CategoryRead(BaseModel):
 class CategoryCreate(BaseModel):
     name: str = Field(min_length=1, max_length=50)
     transaction_type: Literal["income", "expense"]
+
+
+class CategoryUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=50)
