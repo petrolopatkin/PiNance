@@ -453,7 +453,174 @@ def test_post_transactions_without_user_id(test_client, test_db):
     )
 
     assert count == 0
+
+
+def test_post_create_transaction_with_users_category(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter"
+    )
+
+    test_db.add(user)
+    test_db.commit()
+
+    category = Category(
+        name="Gaming",
+        transaction_type="expense",
+        user_id=1
+    )
+
+    test_db.add(category)
+    test_db.commit()
+
+    response = test_client.post("/transactions", json= {
+        "transaction_type": "expense",
+        "amount":"50.00",
+        "description": "Game",
+        "transaction_date": "2026-11-18",
+        "user_id": 1,
+        "category_id": category.id
+    })
+
+    assert response.status_code == 201
+
+    result = response.json()
+
+    assert test_db.get(Transaction, 1) is not None
+    assert result["category_id"] == category.id
+    assert result["description"] == "Game"
+    assert result["amount"] == "50.00"
+    assert result["user_id"] == 1
+    assert result["transaction_type"] == "expense"
+
+
+def test_post_create_transaction_with_standart_category(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter"
+    )
     
+    test_db.add(user)
+    test_db.commit()
+
+    for category_data in STANDARD_CATEGORIES:
+        category = Category(**category_data)
+        test_db.add(category)
+        
+    test_db.commit()
+
+    food_category = test_db.query(Category).filter(Category.name == "Food", 
+    Category.transaction_type == "expense").first()
+
+    response = test_client.post("/transactions", json={
+        "transaction_type": "expense",
+        "amount":"25.00",
+        "description": "Products",
+        "transaction_date": "2026-11-18",
+        "user_id": 1,
+        "category_id": food_category.id
+    })
+
+    assert response.status_code == 201
+
+    result = response.json()
+
+    assert test_db.get(Transaction, result["id"]) is not None
+    assert result["transaction_type"] == "expense"
+    assert result["amount"] == "25.00"
+    assert result["description"] == "Products"
+    assert result["category_id"] == food_category.id
+
+
+def test_post_create_transaction_with_nonexistent_category(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter"
+    )
+        
+    test_db.add(user)
+    test_db.commit()
+
+    response = test_client.post("/transactions", json={
+        "transaction_type": "expense",
+        "amount":"50.00",
+        "description": "Game",
+        "transaction_date": "2026-11-18",
+        "user_id": 1,
+        "category_id": 999
+    })
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Category not found"
+
+
+def test_post_create_transaction_with_other_users_category(test_client, test_db):
+    users = [
+        User(
+            id=1,
+            username="Peter"
+        ),
+        User(
+            id=2,
+            username="Mary"
+        )
+    ]
+
+    test_db.add_all(users)
+    test_db.commit()
+
+    category = Category(
+        name="Gaming",
+        transaction_type="expense",
+        user_id=1
+    )
+
+    test_db.add(category)
+    test_db.commit()
+
+    response = test_client.post("/transactions", json={
+        "transaction_type": "expense",
+        "amount":"50.00",
+        "description": "Game",
+        "transaction_date": "2026-11-18",
+        "user_id": 2,
+        "category_id": category.id
+    })
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "You do not have permission to use this category"
+
+
+def test_post_create_transaction_with_wrong_transaction_type_in_category(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter"
+    )
+        
+    test_db.add(user)
+    test_db.commit()
+
+    category = Category(
+        name="Gaming",
+        transaction_type="expense",
+        user_id=1
+    )
+
+    test_db.add(category)
+    test_db.commit()
+
+    response = test_client.post("/transactions", json={
+        "transaction_type": "income",
+        "amount":"50.00",
+        "description": "Game",
+        "transaction_date": "2026-11-18",
+        "user_id": 1,
+        "category_id": category.id
+    })
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Category type must match transaction type"
+
 
 def test_patch_transactions(test_client, test_db):
     user = User(
@@ -583,6 +750,319 @@ def test_patch_updates_with_multiple_fields(test_client, test_db):
     assert result["transaction_date"] == "2026-11-08"
 
 
+def test_patch_update_users_category(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter"
+    )
+        
+    test_db.add(user)
+    test_db.commit()
+
+    categories = [
+        Category(
+        name="Gaming",
+        transaction_type="expense",
+        user_id=1
+        ),
+        Category(
+            name="Virtual Name",
+            transaction_type="expense",
+            user_id=1
+        )  
+    ]
+
+    test_db.add_all(categories)
+    test_db.commit()
+
+    transaction = Transaction(
+        transaction_type="expense",
+        amount=Decimal("50.00"),
+        description="Game",
+        transaction_date=date(2026, 11, 18),
+        user_id=1,
+        category_id=1
+    )
+    
+    test_db.add(transaction)
+    test_db.commit()
+
+    response = test_client.patch("/transactions/1", json={
+        "category_id": 2
+    })
+
+    assert response.status_code == 200
+
+    result = response.json()
+
+    assert result["category_id"] == 2
+    assert result["transaction_type"] == "expense"
+    assert result["amount"] == "50.00"
+    assert result["description"] == "Game"
+    assert result["transaction_date"] == "2026-11-18"
+    assert result["user_id"] == 1
+
+
+def test_patch_remove_category_from_transaction(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter"
+    )
+            
+    test_db.add(user)
+    test_db.commit()
+
+    category = Category(
+        name="Gaming",
+        transaction_type="expense",
+        user_id=1
+    )
+    
+    test_db.add(category)
+    test_db.commit()
+
+    transaction = Transaction(
+        transaction_type="expense",
+        amount=Decimal("50.00"),
+        description="Game",
+        transaction_date=date(2026, 11, 18),
+        user_id=1,
+        category_id=1
+    )
+        
+    test_db.add(transaction)
+    test_db.commit()
+
+    response = test_client.patch("/transactions/1", json={
+        "category_id": None
+    })
+
+    assert response.status_code == 200
+    
+    result = response.json()
+    
+    assert result["category_id"] is None
+    assert result["transaction_type"] == "expense"
+    assert result["amount"] == "50.00"
+    assert result["description"] == "Game"
+    assert result["transaction_date"] == "2026-11-18"
+    assert result["user_id"] == 1
+
+
+def test_patch_update_nonexistent_category(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter"
+    )
+                
+    test_db.add(user)
+    test_db.commit()
+    
+    category = Category(
+        name="Gaming",
+        transaction_type="expense",
+        user_id=1
+    )
+        
+    test_db.add(category)
+    test_db.commit()
+    
+    transaction = Transaction(
+        transaction_type="expense",
+        amount=Decimal("50.00"),
+        description="Game",
+        transaction_date=date(2026, 11, 18),
+        user_id=1,
+        category_id=1
+    )
+            
+    test_db.add(transaction)
+    test_db.commit()
+
+    response = test_client.patch("/transactions/1", json={
+        "category_id": 999
+    })
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Category not found"
+
+
+def test_patch_updates_other_users_category(test_client, test_db):
+    users = [
+        User(
+            id=1,
+            username="Peter"
+        ),
+        User(
+            id=2,
+            username="Mary"
+        )
+    ]
+    
+    test_db.add_all(users)
+    test_db.commit()
+    
+    category = Category(
+        name="Gaming",
+        transaction_type="expense",
+        user_id=2
+    )
+    
+    test_db.add(category)
+    test_db.commit()
+
+    transaction =  Transaction(
+            transaction_type="expense",
+            amount=Decimal("70.00"),
+            description="Game",
+            transaction_date=date(2026, 11, 18),
+            user_id=1,
+            category_id=1
+        )
+    
+    test_db.add(transaction)
+    test_db.commit()
+
+    response = test_client.patch("/transactions/1", json={
+        "category_id": category.id
+    })
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "You do not have permission to use this category"
+
+
+def test_patch_update_category_type_mismatch(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter"
+    )
+                    
+    test_db.add(user)
+    test_db.commit()
+        
+    category = Category(
+        name="Salary",
+        transaction_type="income",
+        user_id=1
+    )
+            
+    test_db.add(category)
+    test_db.commit()
+        
+    transaction = Transaction(
+            transaction_type="expense",
+            amount=Decimal("50.00"),
+            description="Game",
+            transaction_date=date(2026, 11, 18),
+            user_id=1,
+            category_id=category.id
+    )
+                
+    test_db.add(transaction)
+    test_db.commit()
+
+    response = test_client.patch("/transactions/1", json={
+        "category_id": category.id
+    })
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Category type must match transaction type"
+
+
+def test_patch_update_category_with_invalid_transaction_type(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter"
+    )
+                        
+    test_db.add(user)
+    test_db.commit()
+            
+    category = Category(
+        name="Gaming",
+        transaction_type="expense",
+        user_id=1
+    )
+                
+    test_db.add(category)
+    test_db.commit()
+            
+    transaction = Transaction(
+        transaction_type="expense",
+        amount=Decimal("50.00"),
+        description="Game",
+        transaction_date=date(2026, 11, 18),
+        user_id=1,
+        category_id=category.id
+    )
+                    
+    test_db.add(transaction)
+    test_db.commit()
+
+    response = test_client.patch("/transactions/1", json={
+        "transaction_type": "income"
+    })
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Category type must match transaction type"
+
+
+def test_patch_updates_multiple_values(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter"
+    )
+                            
+    test_db.add(user)
+    test_db.commit()
+                
+    category = [
+        Category(
+            name="Gaming",
+            transaction_type="expense",
+            user_id=1
+        ),
+        Category(
+            name="Salary",
+            transaction_type="income",
+            user_id=1
+        )
+    ]
+                    
+    test_db.add_all(category)
+    test_db.commit()
+
+    salary_category = category[1]
+                
+    transaction = Transaction(
+        transaction_type="expense",
+        amount=Decimal("50.00"),
+        description="Game",
+        transaction_date=date(2026, 11, 18),
+        user_id=1,
+        category_id=category[0].id
+    )
+                        
+    test_db.add(transaction)
+    test_db.commit()
+
+    response = test_client.patch("/transactions/1", json={
+        "transaction_type": "income",
+        "category_id": salary_category.id
+    })
+
+    assert response.status_code == 200
+
+    result = response.json() 
+
+    assert result["transaction_type"] == "income"
+    assert result["category_id"] == salary_category.id
+    assert result["amount"] == "50.00"
+    assert result["description"] == "Game"
+    assert result["transaction_date"] == "2026-11-18"
+    assert result["user_id"] == 1
+
+
 def test_put_transactions(test_client, test_db):
     user = User(
         id=1,
@@ -678,6 +1158,226 @@ def test_put_rejects_negative_amount(test_client, test_db):
     })
     
     assert response.status_code == 422
+
+
+def test_put_replaces_transaction(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter"
+    )
+                            
+    test_db.add(user)
+    test_db.commit()
+                
+    category = Category(
+        name="Gaming",
+        transaction_type="expense",
+        user_id=1
+    )
+                    
+    test_db.add(category)
+    test_db.commit()
+                
+    transaction = Transaction(
+        transaction_type="expense",
+        amount=Decimal("50.00"),
+        description="Game",
+        transaction_date=date(2026, 11, 18),
+        user_id=1,
+        category_id=category.id
+    )
+                        
+    test_db.add(transaction)
+    test_db.commit()
+
+    response = test_client.put("/transactions/1", json={
+        "transaction_type": "expense",
+        "amount": "70.00",
+        "description": "Games",
+        "transaction_date": "2026-11-18",
+        "category_id": category.id
+    })
+
+    assert response.status_code == 200
+
+    result = response.json()
+
+    assert result["transaction_type"] == "expense"
+    assert result["amount"] == "70.00"
+    assert result["description"] == "Games"
+    assert result["transaction_date"] == "2026-11-18"
+    assert result["category_id"] == category.id
+
+
+def test_put_remove_category_from_transaction(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter"
+    )
+                                
+    test_db.add(user)
+    test_db.commit()
+                    
+    category = Category(
+        name="Gaming",
+        transaction_type="expense",
+        user_id=1
+    )
+                        
+    test_db.add(category)
+    test_db.commit()
+                    
+    transaction = Transaction(
+        transaction_type="expense",
+        amount=Decimal("50.00"),
+        description="Game",
+        transaction_date=date(2026, 11, 18),
+        user_id=1,
+        category_id=category.id
+    )
+                            
+    test_db.add(transaction)
+    test_db.commit()
+    
+    response = test_client.put("/transactions/1", json={
+        "transaction_type": "expense",
+        "amount": "70.00",
+        "description": "Games",
+        "transaction_date": "2026-11-18",
+        "category_id": None
+    })
+
+    assert response.status_code == 200
+
+    result = response.json()
+
+    assert result["transaction_type"] == "expense"
+    assert result["amount"] == "70.00"
+    assert result["description"] == "Games"
+    assert result["transaction_date"] == "2026-11-18"
+    assert result["category_id"] is None
+
+
+def test_put_update_nonexistent_category(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter"
+    )
+                                    
+    test_db.add(user)
+    test_db.commit()
+
+    transaction = Transaction(
+        transaction_type="expense",
+        amount=Decimal("50.00"),
+        description="Game",
+        transaction_date=date(2026, 11, 18),
+        user_id=1
+    )
+                                
+    test_db.add(transaction)
+    test_db.commit()
+
+    response = test_client.put("/transactions/1", json={
+        "transaction_type": "expense",
+        "amount": "50.00",
+        "description": "Game",
+        "transaction_date": "2026-11-18",
+        "category_id": 999
+    })
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Category not found"
+
+
+def test_put_updates_other_users_category(test_client, test_db):
+    users = [
+        User(
+            id=1,
+            username="Peter"
+        ),
+        User(
+            id=2,
+            username="Mary"
+        )
+    ]
+    
+    test_db.add_all(users)
+    test_db.commit()
+    
+    category = Category(
+        name="Gaming",
+        transaction_type="expense",
+        user_id=2
+    )
+    
+    test_db.add(category)
+    test_db.commit()
+
+    transaction =  Transaction(
+            transaction_type="expense",
+            amount=Decimal("70.00"),
+            description="Game",
+            transaction_date=date(2026, 11, 18),
+            user_id=1,
+            category_id=1
+        )
+    
+    test_db.add(transaction)
+    test_db.commit()
+
+    response = test_client.put("/transactions/1", json={
+        "transaction_type": "expense",
+        "amount": "70.00",
+        "description": "Game",
+        "transaction_date": "2026-11-18",
+        "category_id": category.id
+    })
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "You do not have permission to use this category"
+
+
+def test_put_updates_transaction_with_invalid_transaction_type(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter"
+    )
+                                        
+    test_db.add(user)
+    test_db.commit()
+
+    category = Category(
+        name="Salary",
+        transaction_type="income",
+        user_id=1
+    )
+
+    test_db.add(category)
+    test_db.commit()
+    
+    transaction = Transaction(
+        transaction_type="expense",
+        amount=Decimal("50.00"),
+        description="Game",
+        transaction_date=date(2026, 11, 18),
+        user_id=1,
+        category_id=category.id
+    )
+                                    
+    test_db.add(transaction)
+    test_db.commit()
+
+    response = test_client.put("/transactions/1", json={
+        "transaction_type": "expense",
+        "amount": "70.00",
+        "description": "Game",
+        "transaction_date": "2026-11-18",
+        "category_id": category.id
+    })
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Category type must match transaction type"
 
 
 def test_delete_transaction(test_client, test_db):

@@ -14,6 +14,7 @@ class TransactionRead(BaseModel):
     description: str | None
     transaction_date: date
     user_id: int
+    category_id: int | None = None
 
 
 class TransactionCreate(BaseModel):
@@ -22,6 +23,7 @@ class TransactionCreate(BaseModel):
     description: str | None = None
     transaction_date: date
     user_id: int 
+    category_id: int | None = None
 
 
 class TransactionUpdate(BaseModel):
@@ -29,6 +31,7 @@ class TransactionUpdate(BaseModel):
     amount: Decimal | None = Field(default=None, gt=0)
     description: str | None = None
     transaction_date: date | None = None
+    category_id: int | None = None
 
 
 class TransactionReplace(BaseModel):
@@ -36,6 +39,7 @@ class TransactionReplace(BaseModel):
     amount: Decimal = Field(gt=0)
     description: str | None = None
     transaction_date: date
+    category_id: int | None = None
 
 
 class UserSummary(BaseModel):

@@ -156,6 +156,27 @@ def create_transaction(transaction: TransactionCreate, db: Session = Depends(get
                 detail="User not found"
             )
 
+    if transaction.category_id is not None:
+        category = db.get(Category, transaction.category_id)
+
+        if category is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Category not found"
+            )
+
+        if category.user_id is not None and category.user_id != transaction.user_id:
+            raise HTTPException(
+                status_code=403,
+                detail="You do not have permission to use this category"
+            )
+
+        if category.transaction_type != transaction.transaction_type:
+            raise HTTPException(
+                status_code=422,
+                detail="Category type must match transaction type"
+            )
+
     new_transaction = Transaction(**transaction.model_dump())
 
     db.add(new_transaction)
@@ -198,6 +219,30 @@ db: Session = Depends(get_db)):
         )
 
     update_data = transaction.model_dump(exclude_unset=True)
+    category_id = update_data.get("category_id", db_transaction.category_id)
+
+    if category_id is not None:
+        category = db.get(Category, category_id)
+
+        if category is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Category not found"
+            )
+
+        if category.user_id is not None and category.user_id != db_transaction.user_id:
+            raise HTTPException(
+                status_code=403,
+                detail="You do not have permission to use this category"
+            )
+
+        new_transaction_type = update_data.get("transaction_type", db_transaction.transaction_type)
+        
+        if category.transaction_type != new_transaction_type:
+            raise HTTPException(
+                status_code=422,
+                detail="Category type must match transaction type"
+            )
 
     for key, value in update_data.items():
         setattr(db_transaction, key, value)
@@ -270,6 +315,28 @@ db: Session = Depends(get_db)):
         )
 
     update_data = transaction.model_dump()
+    category_id = update_data.get("category_id")
+
+    if category_id is not None:
+        db_category = db.get(Category, category_id)
+
+        if db_category is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Category not found"
+            )
+
+        if db_category.user_id is not None and db_category.user_id != db_transaction.user_id:
+            raise HTTPException(
+                status_code=403,
+                detail="You do not have permission to use this category"
+            )
+                
+        if db_category.transaction_type != transaction.transaction_type:
+            raise HTTPException(
+                status_code=422,
+                detail="Category type must match transaction type"
+            )
 
     for key, value in update_data.items():
         setattr(db_transaction, key, value)
