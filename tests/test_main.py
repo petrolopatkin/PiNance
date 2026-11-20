@@ -9,6 +9,7 @@ from sqlalchemy.pool import StaticPool
 from app.models import Base, Transaction, User, Category
 from app.database import get_db
 from app.seed import STANDARD_CATEGORIES
+from app.security import hash_password
 
 test_engine = create_engine(
     "sqlite://",
@@ -68,7 +69,9 @@ def test_client(test_db):
 def test_get_transactions(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
 
     test_db.add(user)
@@ -97,12 +100,15 @@ def test_transactions_filtered_by_type(test_client, test_db):
     users = [
         User(
             id=2,
-            username="Kathy"
+            username="Kathy",
+            email="mail@example.com",
+            hashed_password="test-password-hash"
         ),
         User(
             id=3,
-            username="Mary"
-        )
+            username="Mary",
+            email="mail1@example.com",
+            hashed_password="test-password-hash1"        )
     ]
 
     test_db.add_all(users)
@@ -139,15 +145,20 @@ def test_transactions_sorted_by_amount(test_client, test_db):
     users = [
         User(
             id=2,
-            username="Kathy"
+            username="Kathy",
+            email="mail@example.com",
+            hashed_password="test-password-hash"
         ),
         User(
             id=3,
-            username="Mary"
-        ),
+            username="Mary",
+            email="mail1@example.com",
+            hashed_password="test-password-hash1"),
         User(
             id=4,
-            username="Daniel"
+            username="Daniel",
+            email="mail2@example.com",
+            hashed_password="test-password-hash2"
         )
     ]
     
@@ -198,7 +209,9 @@ def test_transactions_sorted_by_amount(test_client, test_db):
 def test_transactions_transaction_id_accepts(test_client, test_db):
     user = User(
         id=4,
-        username="Daniel"
+        username="Daniel",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
         
     test_db.add(user)
@@ -229,7 +242,9 @@ def test_transactions_transaction_id_accepts(test_client, test_db):
 def test_transactions_transaction_id_rejects(test_client, test_db):
     user = User(
         id=4,
-        username="Daniel"
+        username="Daniel",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
             
     test_db.add(user)
@@ -260,15 +275,21 @@ def test_transactions_limit_one(test_client, test_db):
     users = [
         User(
             id=1,
-            username="Peter"
+            username="Peter",
+            email="mail@example.com",
+            hashed_password="test-password-hash"
         ),
         User(
             id=2,
-            username="Kathy"
+            username="Kathy",
+            email="mail1@example.com",
+            hashed_password="test-password-hash1"
         ),
         User(
             id=3,
-            username="Mary"
+            username="Mary",
+            email="mail2@example.com",
+            hashed_password="test-password-hash2"
         ),
     ]
 
@@ -333,7 +354,9 @@ def test_transactions_negative_limit(test_client):
 def test_transactions_filter_returns_empty_list(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
     
     test_db.add(user)
@@ -363,7 +386,9 @@ def test_transactions_filter_returns_empty_list(test_client, test_db):
 def test_post_transactions(test_client, test_db):
     user = User(
         id=2,
-        username="Kathy"
+        username="Kathy",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
 
     test_db.add(user)
@@ -458,7 +483,9 @@ def test_post_transactions_without_user_id(test_client, test_db):
 def test_post_create_transaction_with_users_category(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
 
     test_db.add(user)
@@ -497,7 +524,9 @@ def test_post_create_transaction_with_users_category(test_client, test_db):
 def test_post_create_transaction_with_standart_category(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
     
     test_db.add(user)
@@ -535,7 +564,9 @@ def test_post_create_transaction_with_standart_category(test_client, test_db):
 def test_post_create_transaction_with_nonexistent_category(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
         
     test_db.add(user)
@@ -558,11 +589,15 @@ def test_post_create_transaction_with_other_users_category(test_client, test_db)
     users = [
         User(
             id=1,
-            username="Peter"
+            username="Peter",
+            email="mail@example.com",
+            hashed_password="test-password-hash"
         ),
         User(
             id=2,
-            username="Mary"
+            username="Mary",
+            email="mail1@example.com",
+            hashed_password="test-password-hash1"
         )
     ]
 
@@ -594,7 +629,9 @@ def test_post_create_transaction_with_other_users_category(test_client, test_db)
 def test_post_create_transaction_with_wrong_transaction_type_in_category(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
         
     test_db.add(user)
@@ -625,7 +662,9 @@ def test_post_create_transaction_with_wrong_transaction_type_in_category(test_cl
 def test_patch_transactions(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
     
     test_db.add(user)
@@ -660,7 +699,9 @@ def test_patch_transactions(test_client, test_db):
 def test_patch_rejects_negative_amount(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
     
     test_db.add(user)
@@ -688,7 +729,9 @@ def test_patch_rejects_negative_amount(test_client, test_db):
 def test_patch_rejects_transaction_with_wrong_id(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
     
     test_db.add(user)
@@ -716,7 +759,9 @@ def test_patch_rejects_transaction_with_wrong_id(test_client, test_db):
 def test_patch_updates_with_multiple_fields(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
     
     test_db.add(user)
@@ -753,7 +798,9 @@ def test_patch_updates_with_multiple_fields(test_client, test_db):
 def test_patch_update_users_category(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
         
     test_db.add(user)
@@ -806,7 +853,9 @@ def test_patch_update_users_category(test_client, test_db):
 def test_patch_remove_category_from_transaction(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
             
     test_db.add(user)
@@ -852,7 +901,9 @@ def test_patch_remove_category_from_transaction(test_client, test_db):
 def test_patch_update_nonexistent_category(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
                 
     test_db.add(user)
@@ -891,11 +942,15 @@ def test_patch_updates_other_users_category(test_client, test_db):
     users = [
         User(
             id=1,
-            username="Peter"
+            username="Peter",
+            email="mail@example.com",
+            hashed_password="test-password-hash"
         ),
         User(
             id=2,
-            username="Mary"
+            username="Mary",
+            email="mail1@example.com",
+            hashed_password="test-password-hash1"
         )
     ]
     
@@ -934,7 +989,9 @@ def test_patch_updates_other_users_category(test_client, test_db):
 def test_patch_update_category_type_mismatch(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
                     
     test_db.add(user)
@@ -972,7 +1029,9 @@ def test_patch_update_category_type_mismatch(test_client, test_db):
 def test_patch_update_category_with_invalid_transaction_type(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
                         
     test_db.add(user)
@@ -1010,7 +1069,9 @@ def test_patch_update_category_with_invalid_transaction_type(test_client, test_d
 def test_patch_updates_multiple_values(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
                             
     test_db.add(user)
@@ -1066,7 +1127,9 @@ def test_patch_updates_multiple_values(test_client, test_db):
 def test_put_transactions(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
     
     test_db.add(user)
@@ -1103,7 +1166,9 @@ def test_put_transactions(test_client, test_db):
 def test_put_transaction_with_wrong_id(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
     
     test_db.add(user)
@@ -1133,7 +1198,9 @@ def test_put_transaction_with_wrong_id(test_client, test_db):
 def test_put_rejects_negative_amount(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
     
     test_db.add(user)
@@ -1163,7 +1230,9 @@ def test_put_rejects_negative_amount(test_client, test_db):
 def test_put_replaces_transaction(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
                             
     test_db.add(user)
@@ -1212,7 +1281,9 @@ def test_put_replaces_transaction(test_client, test_db):
 def test_put_remove_category_from_transaction(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
                                 
     test_db.add(user)
@@ -1261,7 +1332,9 @@ def test_put_remove_category_from_transaction(test_client, test_db):
 def test_put_update_nonexistent_category(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
                                     
     test_db.add(user)
@@ -1294,11 +1367,15 @@ def test_put_updates_other_users_category(test_client, test_db):
     users = [
         User(
             id=1,
-            username="Peter"
+            username="Peter",
+            email="mail@example.com",
+            hashed_password="test-password-hash"
         ),
         User(
             id=2,
-            username="Mary"
+            username="Mary",
+            email="mail1@example.com",
+            hashed_password="test-password-hash1"        
         )
     ]
     
@@ -1341,7 +1418,9 @@ def test_put_updates_other_users_category(test_client, test_db):
 def test_put_updates_transaction_with_invalid_transaction_type(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
                                         
     test_db.add(user)
@@ -1383,7 +1462,9 @@ def test_put_updates_transaction_with_invalid_transaction_type(test_client, test
 def test_delete_transaction(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
     
     test_db.add(user)
@@ -1410,7 +1491,9 @@ def test_delete_transaction(test_client, test_db):
 def test_delete_transaction_with_wrong_id(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
     
     test_db.add(user)
@@ -1437,7 +1520,9 @@ def test_delete_transaction_with_wrong_id(test_client, test_db):
 def test_get_transactions_by_user_without_transactions(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
 
     test_db.add(user)
@@ -1452,7 +1537,9 @@ def test_get_transactions_by_user_without_transactions(test_client, test_db):
 def test_get_transactions_by_user(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
     
     test_db.add(user)
@@ -1496,7 +1583,9 @@ def test_get_transactions_by_non_existed_user(test_client):
 def test_get_user_summary_with_transactions(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
     
     test_db.add(user)
@@ -1554,7 +1643,9 @@ def test_get_user_summary_with_transactions(test_client, test_db):
 def test_get_user_summary_without_transactions(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
         
     test_db.add(user)
@@ -1581,7 +1672,9 @@ def test_get_user_summary_user_not_found(test_client):
 def test_get_transactions_by_user_with_date_range(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
         
     test_db.add(user)
@@ -1638,7 +1731,9 @@ def test_get_transactions_by_user_with_date_range(test_client, test_db):
 def test_get_transactions_by_user_with_date_from(test_client, test_db):
     user = User(
             id=1,
-            username="Peter"
+            username="Peter",
+            email="mail@example.com",
+            hashed_password="test-password-hash"
         )
             
     test_db.add(user)
@@ -1695,7 +1790,9 @@ def test_get_transactions_by_user_with_date_from(test_client, test_db):
 def test_get_transactions_by_user_with_date_to(test_client, test_db):
     user = User(
             id=1,
-            username="Peter"
+            username="Peter",
+            email="mail@example.com",
+            hashed_password="test-password-hash"
         )
             
     test_db.add(user)
@@ -1752,7 +1849,9 @@ def test_get_transactions_by_user_with_date_to(test_client, test_db):
 def test_get_transactions_by_user_without_transactions(test_client, test_db):
     user = User(
             id=1,
-            username="Peter"
+            username="Peter",
+            email="mail@example.com",
+            hashed_password="test-password-hash"
         )
             
     test_db.add(user)
@@ -1776,7 +1875,9 @@ def test_get_transactions_by_user_with_invalid_date(test_client):
 def test_get_transactions_by_user_with_invalid_date_range(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
                 
     test_db.add(user)
@@ -1791,7 +1892,9 @@ def test_get_transactions_by_user_with_invalid_date_range(test_client, test_db):
 def test_get_transactions_by_user_with_minimum_amount(test_client, test_db):
     user = User(
             id=1,
-            username="Peter"
+            username="Peter",
+            email="mail@example.com",
+            hashed_password="test-password-hash"
         )
             
     test_db.add(user)
@@ -1848,7 +1951,9 @@ def test_get_transactions_by_user_with_minimum_amount(test_client, test_db):
 def test_get_transactions_by_user_with_maximum_amount(test_client, test_db):
     user = User(
             id=1,
-            username="Peter"
+            username="Peter",
+            email="mail@example.com",
+            hashed_password="test-password-hash"
         )
             
     test_db.add(user)
@@ -1905,7 +2010,9 @@ def test_get_transactions_by_user_with_maximum_amount(test_client, test_db):
 def test_get_transactions_by_user_with_maximum_amount(test_client, test_db):
     user = User(
             id=1,
-            username="Peter"
+            username="Peter",
+            email="mail@example.com",
+            hashed_password="test-password-hash"
         )
             
     test_db.add(user)
@@ -1962,7 +2069,9 @@ def test_get_transactions_by_user_with_maximum_amount(test_client, test_db):
 def test_get_transactions_by_user_with_invalid_amount_range(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
                 
     test_db.add(user)
@@ -1977,7 +2086,9 @@ def test_get_transactions_by_user_with_invalid_amount_range(test_client, test_db
 def test_get_transactions_by_user_default_pagination(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
 
     test_db.add(user)
@@ -2012,7 +2123,9 @@ def test_get_transactions_by_user_default_pagination(test_client, test_db):
 def test_get_transactions_by_user_with_custom_pagination(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
 
     test_db.add(user)
@@ -2048,7 +2161,9 @@ def test_get_transactions_by_user_with_custom_pagination(test_client, test_db):
 def test_get_transactions_by_user_with_invalid_limit(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
 
     test_db.add(user)
@@ -2062,7 +2177,9 @@ def test_get_transactions_by_user_with_invalid_limit(test_client, test_db):
 def test_get_transactions_by_user_with_invalid_skip(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
 
     test_db.add(user)
@@ -2076,7 +2193,9 @@ def test_get_transactions_by_user_with_invalid_skip(test_client, test_db):
 def test_get_standart_categories(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
 
     test_db.add(user)
@@ -2104,11 +2223,15 @@ def test_get_standart_categories_with_custom_categories(test_client, test_db):
     users = [
         User(
             id=1,
-            username="Peter"
+            username="Peter",
+            email="mail@example.com",
+            hashed_password="test-password-hash"
         ),
         User(
             id=2,
-            username="Mary"
+            username="Mary",
+            email="mail1@example.com",
+            hashed_password="test-password-hash1"        
         )
     ]
 
@@ -2161,7 +2284,9 @@ def test_get_categories_with_invalid_user_id(test_client):
 def test_post_create_category_by_user(test_client, test_db):
     user =  User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
 
     test_db.add(user)
@@ -2185,7 +2310,9 @@ def test_post_create_category_by_user(test_client, test_db):
 def test_post_create_category_with_invalid_transaction_type(test_client, test_db):
     user =  User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
     
     test_db.add(user)
@@ -2213,11 +2340,15 @@ def test_patch_update_category_forbids_changing_categories_of_different_user(tes
     users = [
             User(
                 id=1,
-                username="Peter"
+                username="Peter",
+                email="mail@example.com",
+                hashed_password="test-password-hash"
             ),
             User(
                 id=2,
-                username="Mary"
+                username="Mary",
+                email="mail1@example.com",
+                hashed_password="test-password-hash1"            
             )
         ]
 
@@ -2244,7 +2375,9 @@ def test_patch_update_category_forbids_changing_categories_of_different_user(tes
 def test_patch_by_user_changes_category_correctly(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
 
     test_db.add(user)
@@ -2275,7 +2408,9 @@ def test_patch_by_user_changes_category_correctly(test_client, test_db):
 def test_patch_forbids_changing_standart_category(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
     
     test_db.add(user)
@@ -2298,7 +2433,9 @@ def test_patch_forbids_changing_standart_category(test_client, test_db):
 def test_patch_forbids_empty_json_data(test_client, test_db):
     user = User(
             id=1,
-            username="Peter"
+            username="Peter",
+            email="mail@example.com",
+            hashed_password="test-password-hash"
     )
         
     test_db.add(user)
@@ -2322,7 +2459,9 @@ def test_patch_forbids_empty_json_data(test_client, test_db):
 def test_patch_forbids_none_json_data(test_client, test_db):
     user = User(
             id=1,
-            username="Peter"
+            username="Peter",
+            email="mail@example.com",
+            hashed_password="test-password-hash"
     )
         
     test_db.add(user)
@@ -2348,7 +2487,9 @@ def test_patch_forbids_none_json_data(test_client, test_db):
 def test_delete_category(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
 
     test_db.add(user)
@@ -2372,7 +2513,9 @@ def test_delete_category(test_client, test_db):
 def test_delete_category_with_transactions_is_not_allowed(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
     
     test_db.add(user)
@@ -2418,11 +2561,15 @@ def test_delete_forbids_another_user_category(test_client, test_db):
     users = [
                 User(
                     id=1,
-                    username="Peter"
+                    username="Peter",
+                    email="mail@example.com",
+                    hashed_password="test-password-hash"
                 ),
                 User(
                     id=2,
-                    username="Mary"
+                    username="Mary",
+                    email="mail1@example.com",
+                    hashed_password="test-password-hash1"                
                 )
             ]
     
@@ -2447,7 +2594,9 @@ def test_delete_forbids_another_user_category(test_client, test_db):
 def test_delete_forbids_standart_category(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
         
     test_db.add(user)
@@ -2468,7 +2617,9 @@ def test_delete_forbids_standart_category(test_client, test_db):
 def test_delete_nonexistent_category(test_client, test_db):
     user = User(
         id=1,
-        username="Peter"
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
     )
 
     test_db.add(user)
@@ -2478,3 +2629,96 @@ def test_delete_nonexistent_category(test_client, test_db):
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Category not found"
+
+
+def test_create_new_user(test_client):
+    response = test_client.post("/register", json={
+        "username": "Peter",
+        "email": "peter@example.com",
+        "password": "MyPassword123!"
+    })
+
+    assert response.status_code == 200
+
+    result = response.json()
+
+    assert result["username"] == "Peter"
+    assert result["email"] == "peter@example.com"
+    assert "password" not in result
+    assert "hashed_password" not in result
+
+
+def test_already_existent_user(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter",
+        email="peter@example.com",
+        hashed_password="test-password-hash"
+    )
+
+    test_db.add(user)
+    test_db.commit()
+
+    response = test_client.post("/register", json={
+        "username": "Peter",
+        "email": "peter@example.com",
+        "password": "MyPassword123!"
+    })
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "A user with this email already exists"
+
+
+def test_user_login(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter",
+        email="peter@example.com",
+        hashed_password=hash_password("MyPassword123!")
+    )
+
+    test_db.add(user)
+    test_db.commit()
+
+    response = test_client.post("/login", json={
+        "email": "peter@example.com",
+        "password": "MyPassword123!"
+    })
+
+    assert response.status_code == 200
+
+    result = response.json()
+
+    assert result["username"] == "Peter"
+    assert result["email"] == "peter@example.com"
+    assert "hashed_password" not in result
+
+
+def test_user_login_with_wrong_password(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter",
+        email="peter@example.com",
+        hashed_password=hash_password("MyPassword123!")
+    )
+    
+    test_db.add(user)
+    test_db.commit()
+    
+    response = test_client.post("/login", json={
+        "email": "peter@example.com",
+        "password": "WrongPassword123!"
+    })
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Incorrect email or password"
+
+
+def test_user_login_with_nonexistent_email(test_client, test_db):
+    response = test_client.post("/login", json={
+        "email": "peter@wrongexample.com",
+        "password": "MyPassword123!"
+    })
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Incorrect email or password"

@@ -5,7 +5,8 @@ from sqlalchemy import select, func, or_
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Transaction, User, Category
-from app.schemas import TransactionRead, TransactionCreate, TransactionUpdate, TransactionReplace, UserSummary, CategoryRead, CategoryCreate, CategoryUpdate
+from app.schemas import TransactionRead, TransactionCreate, TransactionUpdate, TransactionReplace, UserSummary, CategoryRead, CategoryCreate, CategoryUpdate, UserRead, UserCreate, UserLogin
+from app.security import hash_password, verify_password
 
 app = FastAPI()
 
@@ -203,6 +204,56 @@ def create_category(user_id: int, category: CategoryCreate, db: Session = Depend
     db.refresh(new_category)
 
     return new_category
+
+
+@app.post("/register", response_model=UserRead)
+def user_register(user_data: UserCreate, db: Session = Depends(get_db)):
+    statement = select(User).where(User.email == user_data.email)
+    result = db.execute(statement)
+    existing_user = result.scalar_one_or_none()
+
+    if existing_user is not None:
+        raise HTTPException(
+            status_code=400,
+            detail="A user with this email already exists"
+        )
+
+    hashed_password = hash_password(user_data.password)
+
+    new_user = User(
+        username=user_data.username,
+        email=user_data.email,
+        hashed_password=hashed_password
+    )
+
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    return UserRead.model_validate(new_user)
+
+
+@app.post("/login", response_model=UserRead)
+def user_login(user_data: UserLogin, db: Session = Depends(get_db)):
+    statement = select(User).where(User.email == user_data.email)
+    result = db.execute(statement)
+    logged_user = result.scalar_one_or_none()
+
+    if logged_user is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect email or password"
+        )
+
+    verified_password = verify_password(user_data.password, logged_user.hashed_password)
+
+    if not verified_password:
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect email or password"
+        )
+
+    return logged_user
 
 
 @app.patch("/transactions/{transaction_id}", response_model=TransactionRead)

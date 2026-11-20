@@ -48,6 +48,27 @@ class UserSummary(BaseModel):
     balance: Decimal
 
 
+class UserCreate(BaseModel):
+    username: str = Field(min_length=3, max_length=50)
+    email: str 
+    password: str = Field(min_length=8)
+
+
+class UserRead(BaseModel):
+    model_config = {
+        "from_attributes": True
+    }
+
+    id: int
+    username: str
+    email: str
+
+
+class UserLogin(BaseModel):
+    email: str
+    password: str = Field(min_length=8)
+
+
 class CategoryRead(BaseModel):
     model_config = {
         "from_attributes": True
