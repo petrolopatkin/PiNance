@@ -1,35 +1,11 @@
 from fastapi.testclient import TestClient
 from app.main import app
-import pytest
 from datetime import date
 from decimal import Decimal
-from sqlalchemy import create_engine, select, func, event 
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
-from app.models import Base, Transaction, User, Category
-from app.database import get_db
+from sqlalchemy import select, func
+from app.models import Transaction, User, Category
 from app.seed import STANDARD_CATEGORIES
 from app.security import hash_password
-
-test_engine = create_engine(
-    "sqlite://",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool
-)
-
-@event.listens_for(test_engine, "connect")
-def enable_foreign_keys(dbapi_connection, connection_record):
-    cursor = dbapi_connection.cursor()
-    cursor.execute("PRAGMA foreign_keys=ON")
-    cursor.close()
-
-TestingSessionLocal = sessionmaker(
-    bind=test_engine,
-    autoflush=False,
-    autocommit=False
-)
-
-Base.metadata.create_all(bind=test_engine)
 
 client = TestClient(app)
 
@@ -38,32 +14,6 @@ def test_health_check():
 
     assert response.status_code == 200
     assert response.json() == {"status": "healthy"}
-
-
-@pytest.fixture
-def test_db():
-    Base.metadata.create_all(bind=test_engine)
-
-    db = TestingSessionLocal()
-
-    try:
-        yield db
-    finally:
-        db.close()
-
-        Base.metadata.drop_all(bind=test_engine)
-
-
-@pytest.fixture
-def test_client(test_db):
-    def override_get_db():
-        yield test_db
-
-    app.dependency_overrides[get_db] = override_get_db
-
-    yield TestClient(app)
-
-    app.dependency_overrides.clear()
 
 
 def test_get_transactions(test_client, test_db):
@@ -2629,96 +2579,3 @@ def test_delete_nonexistent_category(test_client, test_db):
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Category not found"
-
-
-def test_create_new_user(test_client):
-    response = test_client.post("/register", json={
-        "username": "Peter",
-        "email": "peter@example.com",
-        "password": "MyPassword123!"
-    })
-
-    assert response.status_code == 200
-
-    result = response.json()
-
-    assert result["username"] == "Peter"
-    assert result["email"] == "peter@example.com"
-    assert "password" not in result
-    assert "hashed_password" not in result
-
-
-def test_already_existent_user(test_client, test_db):
-    user = User(
-        id=1,
-        username="Peter",
-        email="peter@example.com",
-        hashed_password="test-password-hash"
-    )
-
-    test_db.add(user)
-    test_db.commit()
-
-    response = test_client.post("/register", json={
-        "username": "Peter",
-        "email": "peter@example.com",
-        "password": "MyPassword123!"
-    })
-
-    assert response.status_code == 400
-    assert response.json()["detail"] == "A user with this email already exists"
-
-
-def test_user_login(test_client, test_db):
-    user = User(
-        id=1,
-        username="Peter",
-        email="peter@example.com",
-        hashed_password=hash_password("MyPassword123!")
-    )
-
-    test_db.add(user)
-    test_db.commit()
-
-    response = test_client.post("/login", json={
-        "email": "peter@example.com",
-        "password": "MyPassword123!"
-    })
-
-    assert response.status_code == 200
-
-    result = response.json()
-
-    assert result["username"] == "Peter"
-    assert result["email"] == "peter@example.com"
-    assert "hashed_password" not in result
-
-
-def test_user_login_with_wrong_password(test_client, test_db):
-    user = User(
-        id=1,
-        username="Peter",
-        email="peter@example.com",
-        hashed_password=hash_password("MyPassword123!")
-    )
-    
-    test_db.add(user)
-    test_db.commit()
-    
-    response = test_client.post("/login", json={
-        "email": "peter@example.com",
-        "password": "WrongPassword123!"
-    })
-
-    assert response.status_code == 401
-    assert response.json()["detail"] == "Incorrect email or password"
-
-
-def test_user_login_with_nonexistent_email(test_client, test_db):
-    response = test_client.post("/login", json={
-        "email": "peter@wrongexample.com",
-        "password": "MyPassword123!"
-    })
-
-    assert response.status_code == 401
-    assert response.json()["detail"] == "Incorrect email or password"

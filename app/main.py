@@ -5,8 +5,8 @@ from sqlalchemy import select, func, or_
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Transaction, User, Category
-from app.schemas import TransactionRead, TransactionCreate, TransactionUpdate, TransactionReplace, UserSummary, CategoryRead, CategoryCreate, CategoryUpdate, UserRead, UserCreate, UserLogin
-from app.security import hash_password, verify_password
+from app.schemas import TransactionRead, TransactionCreate, TransactionUpdate, TransactionReplace, UserSummary, CategoryRead, CategoryCreate, CategoryUpdate, UserRead, UserCreate, UserLogin, Token
+from app.security import hash_password, verify_password, create_access_token
 
 app = FastAPI()
 
@@ -233,7 +233,7 @@ def user_register(user_data: UserCreate, db: Session = Depends(get_db)):
     return UserRead.model_validate(new_user)
 
 
-@app.post("/login", response_model=UserRead)
+@app.post("/login", response_model=Token)
 def user_login(user_data: UserLogin, db: Session = Depends(get_db)):
     statement = select(User).where(User.email == user_data.email)
     result = db.execute(statement)
@@ -253,7 +253,12 @@ def user_login(user_data: UserLogin, db: Session = Depends(get_db)):
             detail="Incorrect email or password"
         )
 
-    return logged_user
+    access_token = create_access_token(logged_user.id)
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
 
 
 @app.patch("/transactions/{transaction_id}", response_model=TransactionRead)
