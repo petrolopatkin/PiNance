@@ -185,15 +185,8 @@ def get_categories_by_user(user_id: int, db: Session = Depends(get_db)):
 
 
 @app.post("/transactions", response_model=TransactionRead, status_code=201)
-def create_transaction(transaction: TransactionCreate, db: Session = Depends(get_db)):
-    if transaction.user_id is not None:
-        user =  db.get(User, transaction.user_id)
-        if user is None:
-            raise HTTPException(
-                status_code=404,
-                detail="User not found"
-            )
-
+def create_transaction(transaction: TransactionCreate, db: Session = Depends(get_db),
+current_user: User = Depends(get_current_user)):
     if transaction.category_id is not None:
         category = db.get(Category, transaction.category_id)
 
@@ -203,7 +196,7 @@ def create_transaction(transaction: TransactionCreate, db: Session = Depends(get
                 detail="Category not found"
             )
 
-        if category.user_id is not None and category.user_id != transaction.user_id:
+        if category.user_id is not None and category.user_id != current_user.id:
             raise HTTPException(
                 status_code=403,
                 detail="You do not have permission to use this category"
@@ -215,7 +208,10 @@ def create_transaction(transaction: TransactionCreate, db: Session = Depends(get
                 detail="Category type must match transaction type"
             )
 
-    new_transaction = Transaction(**transaction.model_dump())
+    transaction_data = transaction.model_dump(exclude={
+        "user_id"
+    })
+    new_transaction = Transaction(**transaction_data, user_id=current_user.id)
 
     db.add(new_transaction)
     db.commit()
@@ -300,7 +296,7 @@ def user_login(user_data: UserLogin, db: Session = Depends(get_db)):
 
 @app.patch("/transactions/{transaction_id}", response_model=TransactionRead)
 def update_transaction(transaction_id: int, transaction: TransactionUpdate, 
-db: Session = Depends(get_db)):
+db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     statement = select(Transaction).where(Transaction.id == transaction_id)
     result = db.execute(statement)
     db_transaction = result.scalar_one_or_none()
@@ -309,6 +305,12 @@ db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=404,
             detail="Transaction not found"
+        )
+
+    if db_transaction.user_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You cannot change other users transactions"
         )
 
     update_data = transaction.model_dump(exclude_unset=True)
@@ -396,7 +398,7 @@ db: Session = Depends(get_db)):
 
 @app.put("/transactions/{transaction_id}", response_model=TransactionRead)
 def replace_transaction(transaction_id: int, transaction: TransactionReplace,
-db: Session = Depends(get_db)):
+db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     statement = select(Transaction).where(Transaction.id == transaction_id)
     result = db.execute(statement)
     db_transaction = result.scalar_one_or_none()
@@ -407,7 +409,13 @@ db: Session = Depends(get_db)):
             detail="Transaction not found"
         )
 
-    update_data = transaction.model_dump()
+    if db_transaction.user_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You cannot change other users transactions"
+        )
+
+    update_data = transaction.model_dump(exclude={"user_id"})
     category_id = update_data.get("category_id")
 
     if category_id is not None:
@@ -441,7 +449,8 @@ db: Session = Depends(get_db)):
 
 
 @app.delete("/transactions/{transaction_id}", status_code=204)
-def delete_transaction(transaction_id: int, db: Session = Depends(get_db)):
+def delete_transaction(transaction_id: int, db: Session = Depends(get_db),
+current_user: User = Depends(get_current_user)):
     statement = select(Transaction).where(Transaction.id == transaction_id)
     result = db.execute(statement)
     db_transaction = result.scalar_one_or_none()
@@ -450,6 +459,12 @@ def delete_transaction(transaction_id: int, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=404,
             detail="Transaction not found"
+        )
+
+    if db_transaction.user_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You cannot delete other users transactions"
         )
 
     db.delete(db_transaction)

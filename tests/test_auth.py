@@ -196,3 +196,15 @@ def test_user_cannot_access_another_users_transactions(test_client, test_db):
 
     assert response.status_code == 403
     assert response.json()["detail"] == "You do not have permission to access this resource"
+
+
+def test_create_transaction_without_token(test_client):
+    response = test_client.post("/transactions")
+
+    assert response.status_code == 401
+
+
+def test_delete_transaction_without_token(test_client):
+    response = test_client.delete("/transactions/1")
+
+    assert response.status_code == 401
