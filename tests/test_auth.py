@@ -167,3 +167,32 @@ def test_read_users_me_without_token(test_client):
     response = test_client.get("/users/me")
 
     assert response.status_code == 401
+
+
+def test_user_cannot_access_another_users_transactions(test_client, test_db):
+    users = [
+        User(
+            id=1,
+            username="Peter",
+            email="peter@example.com",
+            hashed_password=hash_password("MyPassword123!")
+        ),
+        User(
+            id=2,
+            username="Alex",
+            email="alex@example.com",
+            hashed_password=hash_password("MyPassword124!")
+        )
+    ]
+
+    test_db.add_all(users)
+    test_db.commit()
+
+    test_token = create_access_token(users[0].id)
+
+    response = test_client.get("/users/2/transactions", headers={
+        "Authorization": f"Bearer {test_token}"
+    })
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "You do not have permission to access this resource"

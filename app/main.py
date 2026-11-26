@@ -58,13 +58,19 @@ def read_users_me(current_user: User = Depends(get_current_user)):
 def get_transactions_by_user_and_date(user_id: int, 
 date_from: date | None = None, date_to: date | None = None, min_amount: Decimal | None = None,
 max_amount: Decimal | None = None, skip: int = Query(default=0, ge=0), limit: int = Query(default=20, ge=1, le=100),
-db: Session = Depends(get_db)):
+db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     user = db.get(User, user_id)
-
+    
     if user is None:
         raise HTTPException(
             status_code=404,
             detail="User not found"
+        )
+
+    if user_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You do not have permission to access this resource"
         )
 
     if date_from is not None and date_to is not None and date_from > date_to:

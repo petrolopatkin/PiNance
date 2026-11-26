@@ -5,7 +5,7 @@ from decimal import Decimal
 from sqlalchemy import select, func
 from app.models import Transaction, User, Category
 from app.seed import STANDARD_CATEGORIES
-from app.security import hash_password
+from app.security import hash_password, create_access_token
 
 client = TestClient(app)
 
@@ -1478,7 +1478,12 @@ def test_get_transactions_by_user_without_transactions(test_client, test_db):
     test_db.add(user)
     test_db.commit()
 
-    response = test_client.get("/users/1/transactions")
+    test_token = create_access_token(user.id)
+    headers = {
+        "Authorization": f"Bearer {test_token}"
+    }
+
+    response = test_client.get("/users/1/transactions", headers=headers)
 
     assert response.status_code == 200
     assert response.json() == []
@@ -1495,6 +1500,11 @@ def test_get_transactions_by_user(test_client, test_db):
     test_db.add(user)
     test_db.commit()
 
+    test_token = create_access_token(user.id)
+    headers = {
+            "Authorization": f"Bearer {test_token}"
+        }
+
     transactions = Transaction(
         id=1,
         transaction_type="expense",
@@ -1507,7 +1517,7 @@ def test_get_transactions_by_user(test_client, test_db):
     test_db.add(transactions)
     test_db.commit()
 
-    response = test_client.get("/users/1/transactions")
+    response = test_client.get("/users/1/transactions", headers=headers)
 
     assert response.status_code == 200
 
@@ -1524,8 +1534,23 @@ def test_get_transactions_by_user(test_client, test_db):
     assert transaction["transaction_date"] == "2026-11-11"
 
 
-def test_get_transactions_by_non_existed_user(test_client):
-    response = test_client.get("/users/999/transactions")
+def test_get_transactions_by_non_existed_user(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
+    )
+
+    test_db.add(user)
+    test_db.commit()
+
+    test_token = create_access_token(user.id)
+    headers = {
+                "Authorization": f"Bearer {test_token}"
+            }
+    
+    response = test_client.get("/users/999/transactions", headers=headers)
 
     assert response.status_code == 404
 
@@ -1540,6 +1565,11 @@ def test_get_user_summary_with_transactions(test_client, test_db):
     
     test_db.add(user)
     test_db.commit()
+
+    test_token = create_access_token(user.id)
+    headers = {
+            "Authorization": f"Bearer {test_token}"
+        }
 
     transactions = [
         Transaction(
@@ -1579,7 +1609,7 @@ def test_get_user_summary_with_transactions(test_client, test_db):
     test_db.add_all(transactions)
     test_db.commit()
 
-    response = test_client.get("/users/1/summary")
+    response = test_client.get("/users/1/summary", headers=headers)
 
     assert response.status_code == 200
 
@@ -1629,6 +1659,11 @@ def test_get_transactions_by_user_with_date_range(test_client, test_db):
         
     test_db.add(user)
     test_db.commit()
+
+    test_token = create_access_token(user.id)
+    headers = {
+            "Authorization": f"Bearer {test_token}"
+        }
     
     transactions = [
         Transaction(
@@ -1668,7 +1703,8 @@ def test_get_transactions_by_user_with_date_range(test_client, test_db):
     test_db.add_all(transactions)
     test_db.commit()
 
-    response = test_client.get("/users/1/transactions?date_from=2026-11-10&date_to=2026-11-15")
+    response = test_client.get("/users/1/transactions?date_from=2026-11-10&date_to=2026-11-15", 
+    headers=headers)
 
     assert response.status_code == 200
 
@@ -1688,6 +1724,11 @@ def test_get_transactions_by_user_with_date_from(test_client, test_db):
             
     test_db.add(user)
     test_db.commit()
+
+    test_token = create_access_token(user.id)
+    headers = {
+            "Authorization": f"Bearer {test_token}"
+        }
         
     transactions = [
             Transaction(
@@ -1727,7 +1768,7 @@ def test_get_transactions_by_user_with_date_from(test_client, test_db):
     test_db.add_all(transactions)
     test_db.commit()
 
-    response = test_client.get("/users/1/transactions?date_from=2026-11-10")
+    response = test_client.get("/users/1/transactions?date_from=2026-11-10", headers=headers)
 
     assert response.status_code == 200
 
@@ -1747,6 +1788,11 @@ def test_get_transactions_by_user_with_date_to(test_client, test_db):
             
     test_db.add(user)
     test_db.commit()
+
+    test_token = create_access_token(user.id)
+    headers = {
+            "Authorization": f"Bearer {test_token}"
+        }
         
     transactions = [
             Transaction(
@@ -1786,7 +1832,7 @@ def test_get_transactions_by_user_with_date_to(test_client, test_db):
     test_db.add_all(transactions)
     test_db.commit()
 
-    response = test_client.get("/users/1/transactions?date_to=2026-11-15")
+    response = test_client.get("/users/1/transactions?date_to=2026-11-15", headers=headers)
 
     assert response.status_code == 200
 
@@ -1796,7 +1842,7 @@ def test_get_transactions_by_user_with_date_to(test_client, test_db):
     assert {transaction["id"] for transaction in result} == {1, 2, 3}
 
 
-def test_get_transactions_by_user_without_transactions(test_client, test_db):
+def test_get_transactions_by_user_without_transactions_with_limit(test_client, test_db):
     user = User(
             id=1,
             username="Peter",
@@ -1807,7 +1853,13 @@ def test_get_transactions_by_user_without_transactions(test_client, test_db):
     test_db.add(user)
     test_db.commit()
 
-    response = test_client.get("/users/1/transactions?date_from=2026-11-01&date_to=2026-11-30")
+    test_token = create_access_token(user.id)
+    headers = {
+            "Authorization": f"Bearer {test_token}"
+        }
+
+    response = test_client.get("/users/1/transactions?date_from=2026-11-01&date_to=2026-11-30",
+    headers=headers)
 
     assert response.status_code == 200
 
@@ -1816,8 +1868,23 @@ def test_get_transactions_by_user_without_transactions(test_client, test_db):
     assert result == []
 
 
-def test_get_transactions_by_user_with_invalid_date(test_client):
-    response = test_client.get("/users/1/transactions?date_from=not-a-date")
+def test_get_transactions_by_user_with_invalid_date(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
+    )
+
+    test_db.add(user)
+    test_db.commit()
+
+    test_token = create_access_token(user.id)
+    headers = {
+                "Authorization": f"Bearer {test_token}"
+            }
+
+    response = test_client.get("/users/1/transactions?date_from=not-a-date", headers=headers)
 
     assert response.status_code == 422
 
@@ -1832,8 +1899,14 @@ def test_get_transactions_by_user_with_invalid_date_range(test_client, test_db):
                 
     test_db.add(user)
     test_db.commit()
+
+    test_token = create_access_token(user.id)
+    headers = {
+                "Authorization": f"Bearer {test_token}"
+            }
     
-    response = test_client.get("/users/1/transactions?date_from=2026-11-30&date_to=2026-11-01")
+    response = test_client.get("/users/1/transactions?date_from=2026-11-30&date_to=2026-11-01",
+    headers=headers)
 
     assert response.status_code == 422
     assert response.json()["detail"] == "Start date must be earlier than or equal to end date"
@@ -1849,6 +1922,11 @@ def test_get_transactions_by_user_with_minimum_amount(test_client, test_db):
             
     test_db.add(user)
     test_db.commit()
+
+    test_token = create_access_token(user.id)
+    headers = {
+                "Authorization": f"Bearer {test_token}"
+            }
         
     transactions = [
             Transaction(
@@ -1888,7 +1966,7 @@ def test_get_transactions_by_user_with_minimum_amount(test_client, test_db):
     test_db.add_all(transactions)
     test_db.commit()
 
-    response = test_client.get("/users/1/transactions?min_amount=600")
+    response = test_client.get("/users/1/transactions?min_amount=600", headers=headers)
 
     assert response.status_code == 200
 
@@ -1908,6 +1986,11 @@ def test_get_transactions_by_user_with_maximum_amount(test_client, test_db):
             
     test_db.add(user)
     test_db.commit()
+
+    test_token = create_access_token(user.id)
+    headers = {
+                "Authorization": f"Bearer {test_token}"
+            }
         
     transactions = [
             Transaction(
@@ -1947,7 +2030,7 @@ def test_get_transactions_by_user_with_maximum_amount(test_client, test_db):
     test_db.add_all(transactions)
     test_db.commit()
 
-    response = test_client.get("/users/1/transactions?max_amount=600")
+    response = test_client.get("/users/1/transactions?max_amount=600", headers=headers)
 
     assert response.status_code == 200
 
@@ -1957,7 +2040,7 @@ def test_get_transactions_by_user_with_maximum_amount(test_client, test_db):
     assert {transaction["id"] for transaction in result} == {2, 3, 4}
 
 
-def test_get_transactions_by_user_with_maximum_amount(test_client, test_db):
+def test_get_transactions_by_user_with_amount_range(test_client, test_db):
     user = User(
             id=1,
             username="Peter",
@@ -1967,6 +2050,11 @@ def test_get_transactions_by_user_with_maximum_amount(test_client, test_db):
             
     test_db.add(user)
     test_db.commit()
+
+    test_token = create_access_token(user.id)
+    headers = {
+                    "Authorization": f"Bearer {test_token}"
+                }
         
     transactions = [
             Transaction(
@@ -2006,7 +2094,8 @@ def test_get_transactions_by_user_with_maximum_amount(test_client, test_db):
     test_db.add_all(transactions)
     test_db.commit()
 
-    response = test_client.get("/users/1/transactions?min_amount=500&max_amount=1000")
+    response = test_client.get("/users/1/transactions?min_amount=500&max_amount=1000", 
+    headers=headers)
 
     assert response.status_code == 200
 
@@ -2027,7 +2116,13 @@ def test_get_transactions_by_user_with_invalid_amount_range(test_client, test_db
     test_db.add(user)
     test_db.commit()
 
-    response = test_client.get("/users/1/transactions?min_amount=500&max_amount=250")
+    test_token = create_access_token(user.id)
+    headers = {
+                    "Authorization": f"Bearer {test_token}"
+                }
+
+    response = test_client.get("/users/1/transactions?min_amount=500&max_amount=250",
+    headers=headers)
 
     assert response.status_code == 422
     assert response.json()["detail"] == "Minimal amount cannot be bigger than maximum"
@@ -2044,6 +2139,11 @@ def test_get_transactions_by_user_default_pagination(test_client, test_db):
     test_db.add(user)
     test_db.commit()
 
+    test_token = create_access_token(user.id)
+    headers = {
+                    "Authorization": f"Bearer {test_token}"
+                }
+
     transactions = [
         Transaction(
             id=i,
@@ -2059,7 +2159,7 @@ def test_get_transactions_by_user_default_pagination(test_client, test_db):
     test_db.add_all(transactions)
     test_db.commit()
 
-    response = test_client.get("/users/1/transactions")
+    response = test_client.get("/users/1/transactions", headers=headers)
 
     assert response.status_code == 200
 
@@ -2081,6 +2181,11 @@ def test_get_transactions_by_user_with_custom_pagination(test_client, test_db):
     test_db.add(user)
     test_db.commit()
 
+    test_token = create_access_token(user.id)
+    headers = {
+                    "Authorization": f"Bearer {test_token}"
+                }
+
     transactions = [
         Transaction(
             id=i,
@@ -2096,7 +2201,7 @@ def test_get_transactions_by_user_with_custom_pagination(test_client, test_db):
     test_db.add_all(transactions)
     test_db.commit()
 
-    response = test_client.get("/users/1/transactions?skip=2&limit=3")
+    response = test_client.get("/users/1/transactions?skip=2&limit=3", headers=headers)
 
     assert response.status_code == 200
 
@@ -2119,7 +2224,12 @@ def test_get_transactions_by_user_with_invalid_limit(test_client, test_db):
     test_db.add(user)
     test_db.commit()
 
-    response = test_client.get("/users/1/transactions?limit=0")
+    test_token = create_access_token(user.id)
+    headers = {
+                    "Authorization": f"Bearer {test_token}"
+                }
+
+    response = test_client.get("/users/1/transactions?limit=0", headers=headers)
 
     assert response.status_code == 422
 
@@ -2135,7 +2245,12 @@ def test_get_transactions_by_user_with_invalid_skip(test_client, test_db):
     test_db.add(user)
     test_db.commit()
 
-    response = test_client.get("/users/1/transactions?skip=-1")
+    test_token = create_access_token(user.id)
+    headers = {
+                    "Authorization": f"Bearer {test_token}"
+                }
+
+    response = test_client.get("/users/1/transactions?skip=-1", headers=headers)
 
     assert response.status_code == 422
 
