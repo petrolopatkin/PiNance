@@ -32,9 +32,9 @@ def create_access_token(user_id: int) -> str:
 def decode_access_token(token: str):
     try:
         payload = jwt.decode(token, secret_key, algorithms=["HS256"])
-    except jwt.ExpiredSignatureError as e:
+    except jwt.ExpiredSignatureError:
         return None
-    except jwt.InvalidTokenError as e:
+    except jwt.InvalidTokenError:
         return None
 
     return payload
