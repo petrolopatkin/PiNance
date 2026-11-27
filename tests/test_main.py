@@ -27,6 +27,11 @@ def test_get_transactions(test_client, test_db):
     test_db.add(user)
     test_db.commit()
 
+    test_token = create_access_token(user.id)
+    headers = {
+        "Authorization": f"Bearer {test_token}"
+    }
+
     transaction = Transaction(
         id = 1,
         transaction_type="expense",
@@ -39,7 +44,7 @@ def test_get_transactions(test_client, test_db):
     test_db.add(transaction)
     test_db.commit()
 
-    response = test_client.get("/transactions")
+    response = test_client.get("/transactions", headers=headers)
 
     assert response.status_code == 200
     assert len(response.json()) == 1
@@ -64,6 +69,11 @@ def test_transactions_filtered_by_type(test_client, test_db):
     test_db.add_all(users)
     test_db.commit()
 
+    test_token = create_access_token(users[0].id)
+    headers = {
+            "Authorization": f"Bearer {test_token}"
+        }
+
     transactions = [Transaction(
         id=2,
         transaction_type="income",
@@ -84,7 +94,7 @@ def test_transactions_filtered_by_type(test_client, test_db):
     test_db.add_all(transactions)
     test_db.commit()
 
-    response = test_client.get("/transactions?transaction_type=income")
+    response = test_client.get("/transactions?transaction_type=income", headers=headers)
 
     assert response.status_code == 200
     assert len(response.json()) == 1
@@ -92,28 +102,20 @@ def test_transactions_filtered_by_type(test_client, test_db):
 
 
 def test_transactions_sorted_by_amount(test_client, test_db):
-    users = [
-        User(
+    user = User(
             id=2,
             username="Kathy",
             email="mail@example.com",
             hashed_password="test-password-hash"
-        ),
-        User(
-            id=3,
-            username="Mary",
-            email="mail1@example.com",
-            hashed_password="test-password-hash1"),
-        User(
-            id=4,
-            username="Daniel",
-            email="mail2@example.com",
-            hashed_password="test-password-hash2"
         )
-    ]
     
-    test_db.add_all(users)
+    test_db.add(user)
     test_db.commit()
+
+    test_token = create_access_token(user.id)
+    headers = {
+        "Authorization": f"Bearer {test_token}"
+    }
 
     transactions = [
         Transaction(
@@ -130,21 +132,21 @@ def test_transactions_sorted_by_amount(test_client, test_db):
         amount=Decimal("15.50"),
         description="Lunch",
         transaction_date=date(2026, 11, 6),
-        user_id=3),
+        user_id=2),
     Transaction(
         id=4,
         transaction_type="expense",
         amount=Decimal("42.40"),
         description="Coat",
         transaction_date = date(2026, 11, 6),
-        user_id=4
+        user_id=2
     )
     ]
 
     test_db.add_all(transactions)
     test_db.commit()
 
-    response = test_client.get("/transactions?sort=amount")
+    response = test_client.get("/transactions?sort=amount", headers=headers)
 
     assert response.status_code == 200
 
@@ -167,6 +169,11 @@ def test_transactions_transaction_id_accepts(test_client, test_db):
     test_db.add(user)
     test_db.commit()
 
+    test_token = create_access_token(user.id)
+    headers = {
+        "Authorization": f"Bearer {test_token}"
+    }
+
     transactions = Transaction(
         id=4,
         transaction_type="expense",
@@ -179,7 +186,7 @@ def test_transactions_transaction_id_accepts(test_client, test_db):
     test_db.add(transactions)
     test_db.commit()
 
-    response = test_client.get("/transactions/4")
+    response = test_client.get("/transactions/4", headers=headers)
 
     assert response.status_code == 200
 
@@ -199,6 +206,11 @@ def test_transactions_transaction_id_rejects(test_client, test_db):
             
     test_db.add(user)
     test_db.commit()
+
+    test_token = create_access_token(user.id)
+    headers = {
+        "Authorization": f"Bearer {test_token}"
+    }
     
     transactions = Transaction(
         id=4,
@@ -212,7 +224,7 @@ def test_transactions_transaction_id_rejects(test_client, test_db):
     test_db.add(transactions)
     test_db.commit()
 
-    response = test_client.get("/transactions/5")
+    response = test_client.get("/transactions/5", headers=headers)
 
     assert response.status_code == 404
 
@@ -246,6 +258,11 @@ def test_transactions_limit_one(test_client, test_db):
     test_db.add_all(users)
     test_db.commit()
 
+    test_token = create_access_token(users[0].id)
+    headers = {
+            "Authorization": f"Bearer {test_token}"
+        }
+
     transactions = Transaction(
             id=1,
             transaction_type="expense",
@@ -274,7 +291,7 @@ def test_transactions_limit_one(test_client, test_db):
     test_db.add_all(transactions)
     test_db.commit()
 
-    response = test_client.get("/transactions?limit=1")
+    response = test_client.get("/transactions?limit=1", headers=headers)
 
     assert response.status_code == 200
 
@@ -283,20 +300,65 @@ def test_transactions_limit_one(test_client, test_db):
     assert len(result) == 1
 
 
-def test_transactions_limit_zero(test_client):
-    response = test_client.get("/transactions?limit=0")
+def test_transactions_limit_zero(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
+    )
+
+    test_db.add(user)
+    test_db.commit()
+
+    test_token = create_access_token(user.id)
+    headers = {
+        "Authorization": f"Bearer {test_token}"
+    }
+
+    response = test_client.get("/transactions?limit=0", headers=headers)
 
     assert response.status_code == 422
 
 
-def test_transactions_limit_more_than_hundred(test_client):
-    response = test_client.get("/transactions?limit=101")
+def test_transactions_limit_more_than_hundred(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
+    )
+    
+    test_db.add(user)
+    test_db.commit()
+    
+    test_token = create_access_token(user.id)
+    headers = {
+        "Authorization": f"Bearer {test_token}"
+    }
+    
+    response = test_client.get("/transactions?limit=101", headers=headers)
 
     assert response.status_code == 422
 
 
-def test_transactions_negative_limit(test_client):
-    response = test_client.get("/transactions?limit=-1")
+def test_transactions_negative_limit(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
+    )
+        
+    test_db.add(user)
+    test_db.commit()
+        
+    test_token = create_access_token(user.id)
+    headers = {
+        "Authorization": f"Bearer {test_token}"
+    }
+
+    response = test_client.get("/transactions?limit=-1", headers=headers)
 
     assert response.status_code == 422
 
@@ -311,6 +373,11 @@ def test_transactions_filter_returns_empty_list(test_client, test_db):
     
     test_db.add(user)
     test_db.commit()
+
+    test_token = create_access_token(user.id)
+    headers = {
+        "Authorization": f"Bearer {test_token}"
+    }
     
     transactions = Transaction(
         id=1,
@@ -324,7 +391,7 @@ def test_transactions_filter_returns_empty_list(test_client, test_db):
     test_db.add(transactions)
     test_db.commit()
 
-    response = test_client.get("/transactions?transaction_type=expense")
+    response = test_client.get("/transactions?transaction_type=expense", headers=headers)
 
     assert response.status_code == 200
 
@@ -1786,6 +1853,47 @@ def test_get_transactions_by_user(test_client, test_db):
     assert transaction["transaction_date"] == "2026-11-11"
 
 
+def test_transactions_rejects_transaction_by_another_user(test_client, test_db):
+    users = [
+        User(
+            id=1,
+            username="Peter",
+            email="peter@example.com",
+            hashed_password=hash_password("MyPassword123!")
+        ),
+        User(
+            id=2,
+            username="Alex",
+            email="alex@example.com",
+            hashed_password=hash_password("MyPassword124!")
+        )
+    ]
+
+    test_db.add_all(users)
+    test_db.commit()
+
+    test_token = create_access_token(users[0].id)
+    headers = {
+        "Authorization": f"Bearer {test_token}"
+    }
+
+    transaction = Transaction(
+        id=1,
+        transaction_type="expense",
+        amount=42.00,
+        description="Lunch",
+        transaction_date=date(2026, 11, 11),
+        user_id=2
+    )
+
+    test_db.add(transaction)
+    test_db.commit()
+
+    response = test_client.get("/transactions/1", headers=headers)
+
+    assert response.status_code == 403
+
+
 def test_get_transactions_by_non_existed_user(test_client, test_db):
     user = User(
         id=1,
@@ -1883,7 +1991,12 @@ def test_get_user_summary_without_transactions(test_client, test_db):
     test_db.add(user)
     test_db.commit()
 
-    response = test_client.get("/users/1/summary")
+    test_token = create_access_token(user.id)
+    headers = {
+        "Authorization": f"Bearer {test_token}"
+    }
+
+    response = test_client.get("/users/1/summary", headers=headers)
 
     assert response.status_code == 200
 
@@ -1894,8 +2007,23 @@ def test_get_user_summary_without_transactions(test_client, test_db):
     assert result["balance"] == "0.00"
 
 
-def test_get_user_summary_user_not_found(test_client):
-    response = test_client.get("/users/999/summary")
+def test_get_user_summary_user_not_found(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
+    )
+            
+    test_db.add(user)
+    test_db.commit()
+    
+    test_token = create_access_token(user.id)
+    headers = {
+        "Authorization": f"Bearer {test_token}"
+    }
+    
+    response = test_client.get("/users/999/summary", headers=headers)
 
     assert response.status_code == 404
     assert response.json()["detail"] == "User not found"
@@ -2499,8 +2627,8 @@ def test_get_transactions_by_user_with_invalid_skip(test_client, test_db):
 
     test_token = create_access_token(user.id)
     headers = {
-                    "Authorization": f"Bearer {test_token}"
-                }
+        "Authorization": f"Bearer {test_token}"
+    }
 
     response = test_client.get("/users/1/transactions?skip=-1", headers=headers)
 
@@ -2518,13 +2646,18 @@ def test_get_standart_categories(test_client, test_db):
     test_db.add(user)
     test_db.commit()
 
+    test_token = create_access_token(user.id)
+    headers = {
+        "Authorization": f"Bearer {test_token}"
+    }
+
     for category_data in STANDARD_CATEGORIES:
         category = Category(**category_data)
         test_db.add(category)
 
     test_db.commit()
 
-    response = test_client.get("/users/1/categories")
+    response = test_client.get("/users/1/categories", headers=headers)
 
     assert response.status_code == 200
 
@@ -2555,6 +2688,11 @@ def test_get_standart_categories_with_custom_categories(test_client, test_db):
     test_db.add_all(users)
     test_db.commit()
 
+    test_token = create_access_token(users[0].id)
+    headers = {
+        "Authorization": f"Bearer {test_token}"
+    }
+
     for category_data in STANDARD_CATEGORIES:
         category = Category(**category_data)
         test_db.add(category)
@@ -2577,7 +2715,7 @@ def test_get_standart_categories_with_custom_categories(test_client, test_db):
     test_db.add_all(categories)
     test_db.commit()
 
-    response = test_client.get("/users/1/categories")
+    response = test_client.get("/users/1/categories", headers=headers)
 
     assert response.status_code == 200
 
@@ -2591,8 +2729,23 @@ def test_get_standart_categories_with_custom_categories(test_client, test_db):
     assert "Photography" not in names
 
 
-def test_get_categories_with_invalid_user_id(test_client):
-    response = test_client.get("/users/999/categories")
+def test_get_categories_with_invalid_user_id(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
+    )
+    
+    test_db.add(user)
+    test_db.commit()
+    
+    test_token = create_access_token(user.id)
+    headers = {
+        "Authorization": f"Bearer {test_token}"
+    }
+
+    response = test_client.get("/users/999/categories", headers=headers)
 
     assert response.status_code == 404
     assert response.json()["detail"] == "User not found"
@@ -2609,10 +2762,15 @@ def test_post_create_category_by_user(test_client, test_db):
     test_db.add(user)
     test_db.commit()
 
+    test_token = create_access_token(user.id)
+    headers = {
+        "Authorization": f"Bearer {test_token}"
+    }
+
     response = test_client.post("/users/1/categories", json={
         "name": "My Hobby",
         "transaction_type": "expense"
-    })
+    }, headers=headers)
 
     assert response.status_code == 201
 
@@ -2635,19 +2793,39 @@ def test_post_create_category_with_invalid_transaction_type(test_client, test_db
     test_db.add(user)
     test_db.commit()
 
+    test_token = create_access_token(user.id)
+    headers = {
+        "Authorization": f"Bearer {test_token}"
+    }
+
     response = test_client.post("/users/1/categories", json={
         "name": "My Hobby",
         "transaction_type": "saving"
-    })
+    }, headers=headers)
 
     assert response.status_code == 422
 
 
-def test_post_create_category_with_invalid_user_id(test_client):
+def test_post_create_category_with_invalid_user_id(test_client, test_db):
+    user =  User(
+        id=1,
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
+    )
+        
+    test_db.add(user)
+    test_db.commit()
+    
+    test_token = create_access_token(user.id)
+    headers = {
+        "Authorization": f"Bearer {test_token}"
+    }
+
     response = test_client.post("/users/999/categories", json={
         "name": "My Hobby",
         "transaction_type": "expense"
-    })
+    }, headers=headers)
 
     assert response.status_code == 404
     assert response.json()["detail"] == "User not found"
@@ -2672,6 +2850,11 @@ def test_patch_update_category_forbids_changing_categories_of_different_user(tes
     test_db.add_all(users)
     test_db.commit()
 
+    test_token = create_access_token(users[0].id)
+    headers = {
+        "Authorization": f"Bearer {test_token}"
+    }
+
     category = Category(
         name="Photography",
         transaction_type="expense",
@@ -2683,7 +2866,7 @@ def test_patch_update_category_forbids_changing_categories_of_different_user(tes
 
     response = test_client.patch(f"/users/1/categories/{category.id}", json = {
         "name": "Not Photography"
-    })
+    }, headers=headers)
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Category not found"
@@ -2700,6 +2883,11 @@ def test_patch_by_user_changes_category_correctly(test_client, test_db):
     test_db.add(user)
     test_db.commit()
 
+    test_token = create_access_token(user.id)
+    headers = {
+        "Authorization": f"Bearer {test_token}"
+    }
+
     category = Category(
         name="Gaming",
         transaction_type="expense",
@@ -2711,7 +2899,7 @@ def test_patch_by_user_changes_category_correctly(test_client, test_db):
 
     response = test_client.patch(f"/users/1/categories/{category.id}", json={
         "name": "Virtual Gaming"
-    })
+    }, headers=headers)
 
     assert response.status_code == 200
 
@@ -2733,6 +2921,11 @@ def test_patch_forbids_changing_standart_category(test_client, test_db):
     test_db.add(user)
     test_db.commit()
 
+    test_token = create_access_token(user.id)
+    headers = {
+        "Authorization": f"Bearer {test_token}"
+    }
+
     for category_data in STANDARD_CATEGORIES:
         category = Category(**category_data)
         test_db.add(category)
@@ -2741,10 +2934,10 @@ def test_patch_forbids_changing_standart_category(test_client, test_db):
 
     response = test_client.patch("/users/1/categories/2", json={
         "name": "Public Transport"
-    })
+    }, headers=headers)
 
     assert response.status_code == 403
-    assert response.json()["detail"] == "Standart categories cannot be modified"
+    assert response.json()["detail"] == "Standard categories cannot be modified"
 
 
 def test_patch_forbids_empty_json_data(test_client, test_db):
@@ -2758,6 +2951,11 @@ def test_patch_forbids_empty_json_data(test_client, test_db):
     test_db.add(user)
     test_db.commit()
 
+    test_token = create_access_token(user.id)
+    headers = {
+        "Authorization": f"Bearer {test_token}"
+    }
+
     category = Category(
         name="Gaming",
         transaction_type="expense",
@@ -2767,7 +2965,8 @@ def test_patch_forbids_empty_json_data(test_client, test_db):
     test_db.add(category)
     test_db.commit()
 
-    response = test_client.patch(f"/users/1/categories/{category.id}", json={})
+    response = test_client.patch(f"/users/1/categories/{category.id}", json={},
+    headers=headers)
 
     assert response.status_code == 422
     assert response.json()["detail"] == "A valid category name must be provided"
@@ -2784,6 +2983,11 @@ def test_patch_forbids_none_json_data(test_client, test_db):
     test_db.add(user)
     test_db.commit()
 
+    test_token = create_access_token(user.id)
+    headers = {
+        "Authorization": f"Bearer {test_token}"
+    }
+
     category = Category(
         name="Gaming",
         transaction_type="expense",
@@ -2795,7 +2999,7 @@ def test_patch_forbids_none_json_data(test_client, test_db):
 
     response = test_client.patch(f"/users/1/categories/{category.id}", json={
         "name": None
-    })
+    }, headers=headers)
 
     assert response.status_code == 422
     assert response.json()["detail"] == "A valid category name must be provided"
@@ -2812,6 +3016,11 @@ def test_delete_category(test_client, test_db):
     test_db.add(user)
     test_db.commit()
 
+    test_token = create_access_token(user.id)
+    headers = {
+        "Authorization": f"Bearer {test_token}"
+    }
+
     category = Category(
         name="Gaming",
         transaction_type="expense",
@@ -2821,7 +3030,7 @@ def test_delete_category(test_client, test_db):
     test_db.add(category)
     test_db.commit()
 
-    response = test_client.delete(f"/users/1/categories/{category.id}")
+    response = test_client.delete(f"/users/1/categories/{category.id}", headers=headers)
 
     assert response.status_code == 204
     assert test_db.get(Category, category.id) is None
@@ -2837,6 +3046,11 @@ def test_delete_category_with_transactions_is_not_allowed(test_client, test_db):
     
     test_db.add(user)
     test_db.commit()
+
+    test_token = create_access_token(user.id)
+    headers = {
+        "Authorization": f"Bearer {test_token}"
+    }
     
     category = Category(
         name="Gaming",
@@ -2860,15 +3074,30 @@ def test_delete_category_with_transactions_is_not_allowed(test_client, test_db):
     test_db.add(transaction)
     test_db.commit()
 
-    response = test_client.delete(f"/users/1/categories/{category.id}")
+    response = test_client.delete(f"/users/1/categories/{category.id}", headers=headers)
 
     assert response.status_code == 409
     assert response.json()["detail"] == "This category contains some transactions. Delete them before deleting the category"
     assert test_db.get(Category, category.id) is not None
 
 
-def test_delete_category_with_nonexistent_user(test_client, ):
-    response = test_client.delete("/users/999/categories/1")
+def test_delete_category_with_nonexistent_user(test_client, test_db):
+    user = User(
+        id=1,
+        username="Peter",
+        email="mail@example.com",
+        hashed_password="test-password-hash"
+    )
+        
+    test_db.add(user)
+    test_db.commit()
+    
+    test_token = create_access_token(user.id)
+    headers = {
+        "Authorization": f"Bearer {test_token}"
+    }
+
+    response = test_client.delete("/users/999/categories/1", headers=headers)
 
     assert response.status_code == 404
     assert response.json()["detail"] == "User not found"
@@ -2892,6 +3121,11 @@ def test_delete_forbids_another_user_category(test_client, test_db):
     
     test_db.add_all(users)
     test_db.commit()
+
+    test_token = create_access_token(users[0].id)
+    headers = {
+        "Authorization": f"Bearer {test_token}"
+    }
     
     category = Category(
             name="Photography",
@@ -2902,7 +3136,7 @@ def test_delete_forbids_another_user_category(test_client, test_db):
     test_db.add(category)
     test_db.commit()
     
-    response = test_client.delete(f"/users/1/categories/{category.id}")
+    response = test_client.delete(f"/users/1/categories/{category.id}", headers=headers)
     
     assert response.status_code == 404
     assert response.json()["detail"] == "Category not found"
@@ -2919,16 +3153,21 @@ def test_delete_forbids_standart_category(test_client, test_db):
     test_db.add(user)
     test_db.commit()
 
+    test_token = create_access_token(user.id)
+    headers = {
+        "Authorization": f"Bearer {test_token}"
+    }
+
     for category_data in STANDARD_CATEGORIES:
         category = Category(**category_data)
         test_db.add(category)
     
     test_db.commit()
 
-    response = test_client.delete("/users/1/categories/2")
+    response = test_client.delete("/users/1/categories/2", headers=headers)
 
     assert response.status_code == 403
-    assert response.json()["detail"] == "Standart categories cannot be deleted"
+    assert response.json()["detail"] == "Standard categories cannot be deleted"
 
 
 def test_delete_nonexistent_category(test_client, test_db):
@@ -2942,7 +3181,12 @@ def test_delete_nonexistent_category(test_client, test_db):
     test_db.add(user)
     test_db.commit()
 
-    response = test_client.delete("/users/1/categories/999")
+    test_token = create_access_token(user.id)
+    headers = {
+        "Authorization": f"Bearer {test_token}"
+    }
+
+    response = test_client.delete("/users/1/categories/999", headers=headers)
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Category not found"

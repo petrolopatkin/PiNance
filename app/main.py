@@ -113,8 +113,9 @@ def health_check():
 
 @app.get("/transactions", response_model=list[TransactionRead])
 def get_transactions(transaction_type: str | None = None, sort: str | None = None, 
-db: Session = Depends(get_db), limit: int = Query(default=100, ge=1, le=100)):
-    statement = select(Transaction)
+db: Session = Depends(get_db), limit: int = Query(default=100, ge=1, le=100),
+current_user: User = Depends(get_current_user)):
+    statement = select(Transaction).where(Transaction.user_id == current_user.id)
 
     if transaction_type is not None:
         statement = statement.where(Transaction.transaction_type == transaction_type)
@@ -130,7 +131,8 @@ db: Session = Depends(get_db), limit: int = Query(default=100, ge=1, le=100)):
 
 
 @app.get("/transactions/{transaction_id}", response_model=TransactionRead)
-def get_transaction_by_id(transaction_id: int, db: Session = Depends(get_db)):
+def get_transaction_by_id(transaction_id: int, db: Session = Depends(get_db),
+current_user: User = Depends(get_current_user)):
     statement = select(Transaction).where(Transaction.id == transaction_id)
 
     result = db.execute(statement)
@@ -142,17 +144,30 @@ def get_transaction_by_id(transaction_id: int, db: Session = Depends(get_db)):
             detail="Transaction not found"
         )
 
+    if transaction.user_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You cannot access other users' transactions"
+        )
+
     return transaction
 
 
 @app.get("/users/{user_id}/summary", response_model=UserSummary)
-def get_user_summary(user_id: int, db: Session = Depends(get_db)):
+def get_user_summary(user_id: int, db: Session = Depends(get_db),
+current_user: User = Depends(get_current_user)):
     user = db.get(User, user_id)
 
     if user is None:
         raise HTTPException(
             status_code=404,
             detail="User not found"
+        )
+
+    if user.id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You cannot access other users' information"
         )
 
     total_income = get_total(db, user_id, "income")
@@ -168,13 +183,20 @@ def get_user_summary(user_id: int, db: Session = Depends(get_db)):
 
 
 @app.get("/users/{user_id}/categories", response_model=list[CategoryRead])
-def get_categories_by_user(user_id: int, db: Session = Depends(get_db)):
+def get_categories_by_user(user_id: int, db: Session = Depends(get_db),
+current_user: User = Depends(get_current_user)):
     user = db.get(User, user_id)
 
     if user is None:
         raise HTTPException(
             status_code=404,
             detail="User not found"
+        )
+
+    if user.id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You cannot access other users' categories"
         )
 
     statement = select(Category).where(or_(Category.user_id == user_id, Category.user_id.is_(None)))
@@ -221,13 +243,20 @@ current_user: User = Depends(get_current_user)):
 
 
 @app.post("/users/{user_id}/categories", response_model=CategoryRead, status_code=201)
-def create_category(user_id: int, category: CategoryCreate, db: Session = Depends(get_db)):
+def create_category(user_id: int, category: CategoryCreate, db: Session = Depends(get_db),
+current_user: User = Depends(get_current_user)):
     user = db.get(User, user_id)
 
     if user is None:
         raise HTTPException(
             status_code=404,
             detail="User not found"
+        )
+
+    if user.id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You cannot create categories for other users"
         )
 
     new_category = Category(user_id=user_id, **category.model_dump())
@@ -350,13 +379,19 @@ db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
 
 @app.patch("/users/{user_id}/categories/{category_id}", response_model=CategoryRead)
 def update_category(user_id: int, category_id: int, category: CategoryUpdate, 
-db: Session = Depends(get_db)):
+db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     user = db.get(User, user_id)
 
     if user is None:
         raise HTTPException(
             status_code=404,
             detail="User not found"
+        )
+
+    if user.id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You cannot change other users' categories"
         )
 
     db_category = db.get(Category, category_id)
@@ -370,7 +405,7 @@ db: Session = Depends(get_db)):
     if db_category.user_id is None:
         raise HTTPException(
             status_code=403,
-            detail="Standart categories cannot be modified"
+            detail="Standard categories cannot be modified"
         )
 
     if db_category.user_id != user_id:
@@ -474,13 +509,20 @@ current_user: User = Depends(get_current_user)):
 
 
 @app.delete("/users/{user_id}/categories/{category_id}", status_code=204)
-def delete_category(user_id: int, category_id: int, db: Session = Depends(get_db)):
+def delete_category(user_id: int, category_id: int, db: Session = Depends(get_db),
+current_user: User = Depends(get_current_user)):
     user = db.get(User, user_id)
 
     if user is None:
         raise HTTPException(
             status_code=404,
             detail="User not found"
+        )
+
+    if user.id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You cannot delete other users' category"
         )
 
     db_category = db.get(Category, category_id)
@@ -494,7 +536,7 @@ def delete_category(user_id: int, category_id: int, db: Session = Depends(get_db
     if db_category.user_id is None:
         raise HTTPException(
             status_code=403,
-            detail="Standart categories cannot be deleted"
+            detail="Standard categories cannot be deleted"
         )
 
     if db_category.user_id != user_id:
